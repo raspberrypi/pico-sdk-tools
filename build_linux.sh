@@ -40,7 +40,7 @@ done < <(echo "$repos")
 
 
 cd $builddir
-if [[ $(uname -m) == 'aarch64' ]]; then
+if [[ "$SKIP_RISCV" != 1 ]] && [[ $(uname -m) == 'aarch64' ]]; then
     # Only need this for pi, and it takes ages to build
     ../packages/linux/riscv/build-riscv-gcc.sh
 fi
@@ -88,7 +88,7 @@ pushd "$builddir/openocd-install/usr/local/bin"
 tar -a -cf "$topd/bin/$filename" * -C "../share/openocd" "scripts"
 popd
 
-if [[ $(uname -m) == 'aarch64' ]]; then
+if [[ "$SKIP_RISCV" != 1 ]] && [[ $(uname -m) == 'aarch64' ]]; then
     # Package riscv toolchain separately as well
     version="14"
     echo "Risc-V Toolchain version $version"
