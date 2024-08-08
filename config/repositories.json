@@ -1,0 +1,26 @@
+{
+  "repositories": [
+    {
+      "href": "git@github.com:raspberrypi/pico-sdk-rp2350.git",
+      "tree": "rp2350"
+    },
+    {
+      "href": "git@github.com:raspberrypi/picotool-rp2350.git",
+      "tree": "rp2350"
+    },
+    {
+      "href": "git@github.com:raspberrypi/openocd-rp2350.git",
+      "tree": "rp2350"
+    },
+    {
+      "href": "https://github.com/riscv/riscv-gnu-toolchain.git",
+      "tree": "master",
+      "pi_only": true
+    },
+    {
+      "href": "https://github.com/gcc-mirror/gcc",
+      "tree": "releases/gcc-14",
+      "pi_only": true
+    }
+  ]
+}
