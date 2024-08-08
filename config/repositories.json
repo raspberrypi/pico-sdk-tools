@@ -9,8 +9,8 @@
       "tree": "2.0.0"
     },
     {
-      "href": "git@github.com:raspberrypi/openocd-rp2350.git",
-      "tree": "rp2350"
+      "href": "https://github.com/raspberrypi/openocd.git",
+      "tree": "sdk-2.0.0"
     },
     {
       "href": "https://github.com/riscv/riscv-gnu-toolchain.git",
