@@ -1,12 +1,12 @@
 {
   "repositories": [
     {
-      "href": "git@github.com:raspberrypi/pico-sdk-rp2350.git",
-      "tree": "rp2350"
+      "href": "https://github.com/raspberrypi/pico-sdk.git",
+      "tree": "2.0.0"
     },
     {
-      "href": "git@github.com:raspberrypi/picotool-rp2350.git",
-      "tree": "rp2350"
+      "href": "https://github.com/raspberrypi/picotool.git",
+      "tree": "2.0.0"
     },
     {
       "href": "git@github.com:raspberrypi/openocd-rp2350.git",
