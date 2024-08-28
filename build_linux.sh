@@ -25,14 +25,6 @@ do
     filename=${filename%"-rp2350"}
     repodir="$builddir/${filename}"
 
-    pi_only=$(echo "$repo" | jq -r .pi_only)
-    if [[ "$pi_only" == "true" ]]; then
-        if [[ $(uname -m) != 'aarch64' ]]; then
-            echo "Skipping Pi only $repodir"
-            continue
-        fi
-    fi
-
     echo "${href} ${tree} ${filename} ${extension} ${repodir}"
     rm -rf "${repodir}"
     git clone -b "${tree}" --depth=1 -c advice.detachedHead=false "${href}" "${repodir}" 
@@ -40,8 +32,8 @@ done < <(echo "$repos")
 
 
 cd $builddir
-if [[ "$SKIP_RISCV" != 1 ]] && [[ $(uname -m) == 'aarch64' ]]; then
-    # Only need this for pi, and it takes ages to build
+if [[ "$SKIP_RISCV" != 1 ]]; then
+    # Takes ages to build
     ../packages/linux/riscv/build-riscv-gcc.sh
 fi
 ../packages/linux/openocd/build-openocd.sh
@@ -88,7 +80,7 @@ pushd "$builddir/openocd-install/usr/local/bin"
 tar -a -cf "$topd/bin/$filename" * -C "../share/openocd" "scripts"
 popd
 
-if [[ "$SKIP_RISCV" != 1 ]] && [[ $(uname -m) == 'aarch64' ]]; then
+if [[ "$SKIP_RISCV" != 1 ]]; then
     # Package riscv toolchain separately as well
     version="14"
     echo "Risc-V Toolchain version $version"

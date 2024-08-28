@@ -96,7 +96,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_KEY }}
       - name: Build
-        run: SKIP_RISCV=1 ./build_linux.sh
+        run: SKIP_RISCV=0 ./build_linux.sh
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:

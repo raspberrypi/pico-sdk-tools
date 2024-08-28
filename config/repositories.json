@@ -14,13 +14,11 @@
     },
     {
       "href": "https://github.com/riscv/riscv-gnu-toolchain.git",
-      "tree": "master",
-      "pi_only": true
+      "tree": "master"
     },
     {
       "href": "https://github.com/gcc-mirror/gcc",
-      "tree": "releases/gcc-14",
-      "pi_only": true
+      "tree": "releases/gcc-14"
     }
   ]
 }
