@@ -27,6 +27,7 @@ jobs:
             bin/picotool-*-x64-win.zip
             bin/pico-sdk-tools-*-x64-win.zip
             bin/openocd-*-x64-win.zip
+            bin/riscv-toolchain-*-x64-win.zip
       - name: Add Release Asset
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -35,6 +36,7 @@ jobs:
             bin/picotool-*-x64-win.zip
             bin/pico-sdk-tools-*-x64-win.zip
             bin/openocd-*-x64-win.zip
+            bin/riscv-toolchain-*-x64-win.zip
 
   build_macos:
     name: Build MacOS
