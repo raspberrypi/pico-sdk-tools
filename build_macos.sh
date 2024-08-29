@@ -6,6 +6,12 @@ set -euo pipefail
 arch -x86_64 /usr/local/bin/brew install jq libtool libusb automake hidapi
 arch -arm64 /opt/homebrew/bin/brew install jq libtool libusb automake hidapi
 # Risc-V prerequisites
+echo "Listing local"
+ls /usr/local/bin
+rm /usr/local/bin/2to3*
+rm /usr/local/bin/idle3*
+rm /usr/local/bin/pip*
+rm /usr/local/bin/py*
 arch -x86_64 /usr/local/bin/brew install python3 gawk gnu-sed gmp mpfr libmpc isl zlib expat texinfo flock libslirp
 arch -arm64 /opt/homebrew/bin/brew install python3 gawk gnu-sed gmp mpfr libmpc isl zlib expat texinfo flock libslirp
 
