@@ -39,8 +39,8 @@ jobs:
   build_macos:
     if: true
     name: Build MacOS
-    runs-on: [self-hosted, macOS]
-    # runs-on: 'macos-latest'
+    # runs-on: [self-hosted, macOS]
+    runs-on: 'macos-latest'
 
     steps:
       - name: Checkout
@@ -68,6 +68,7 @@ jobs:
             bin/picotool-*-mac.zip
             bin/pico-sdk-tools-*-mac.zip
             bin/openocd-*-mac.zip
+            bin/riscv-toolchain-*-mac.tar.gz
       - name: Add Release Asset
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -76,6 +77,7 @@ jobs:
             bin/picotool-*-mac.zip
             bin/pico-sdk-tools-*-mac.zip
             bin/openocd-*-mac.zip
+            bin/riscv-toolchain-*-mac.tar.gz
 
   build_linux:
     name: Build Linux
