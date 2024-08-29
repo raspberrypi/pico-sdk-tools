@@ -37,7 +37,6 @@ jobs:
             bin/openocd-*-x64-win.zip
 
   build_macos:
-    if: true
     name: Build MacOS
     # runs-on: [self-hosted, macOS]
     runs-on: 'macos-latest'
@@ -68,7 +67,7 @@ jobs:
             bin/picotool-*-mac.zip
             bin/pico-sdk-tools-*-mac.zip
             bin/openocd-*-mac.zip
-            bin/riscv-toolchain-*-mac.tar.gz
+            bin/riscv-toolchain-*-mac.zip
       - name: Add Release Asset
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -77,7 +76,7 @@ jobs:
             bin/picotool-*-mac.zip
             bin/pico-sdk-tools-*-mac.zip
             bin/openocd-*-mac.zip
-            bin/riscv-toolchain-*-mac.tar.gz
+            bin/riscv-toolchain-*-mac.zip
 
   build_linux:
     name: Build Linux
