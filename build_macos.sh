@@ -5,11 +5,17 @@ set -euo pipefail
 # Install prerequisites
 arch -x86_64 /usr/local/bin/brew install jq libtool libusb automake hidapi
 arch -arm64 /opt/homebrew/bin/brew install jq libtool libusb automake hidapi
+# Risc-V prerequisites
+arch -x86_64 /usr/local/bin/brew install python3 gawk gnu-sed gmp mpfr libmpc isl zlib expat texinfo flock libslirp
+arch -arm64 /opt/homebrew/bin/brew install python3 gawk gnu-sed gmp mpfr libmpc isl zlib expat texinfo flock libslirp
 
 repos=$(cat config/repositories.json | jq -c '.repositories.[]')
 export version=$(cat ./version.txt)
 suffix="mac"
 builddir="build"
+
+# nproc alias
+alias nproc="sysctl -n hw.logicalcpu"
 
 mkdir -p $builddir
 mkdir -p "bin"
@@ -24,12 +30,6 @@ do
     filename=${filename%"-rp2350"}
     repodir="$builddir/${filename}"
 
-    pi_only=$(echo "$repo" | jq -r .pi_only)
-    if [[ "$pi_only" == "true" ]]; then
-        echo "Skipping Pi only $repodir"
-        continue
-    fi
-
     echo "${href} ${tree} ${filename} ${extension} ${repodir}"
     rm -rf "${repodir}"
     git clone -b "${tree}" --depth=1 -c advice.detachedHead=false "${href}" "${repodir}" 
@@ -37,6 +37,10 @@ done < <(echo "$repos")
 
 
 cd $builddir
+if [[ "$SKIP_RISCV" != 1 ]]; then
+    # Takes ages to build
+    ../packages/macos/riscv/build-riscv-gcc.sh
+fi
 if [[ $(uname -m) == 'arm64' ]]; then
     ../packages/macos/openocd/build-openocd.sh
 fi
@@ -83,5 +87,18 @@ if [[ $(uname -m) == 'arm64' ]]; then
     echo "Saving OpenOCD package to $filename"
     pushd "$builddir/openocd-install/usr/local/bin"
     tar -a -cf "$topd/bin/$filename" * -C "../share/openocd" "scripts"
+    popd
+fi
+
+if [[ "$SKIP_RISCV" != 1 ]]; then
+    # Package riscv toolchain separately as well
+    version="14"
+    echo "Risc-V Toolchain version $version"
+
+    filename="riscv-toolchain-${version}-arm64-${suffix}.zip"
+
+    echo "Saving Risc-V Toolchain package to $filename"
+    pushd "$builddir/riscv-install/"
+    tar -a -cf "$topd/bin/$filename" *
     popd
 fi
