@@ -2,6 +2,16 @@
 
 set -euo pipefail
 
+# Defaults
+SKIP_RISCV=${SKIP_RISCV-0}
+if git clone https://git.savannah.nongnu.org/git/git2cl.git; then
+    SKIP_OPENOCD=${SKIP_OPENOCD-0}
+else
+    # Clone is failing, so skip build
+    echo "Skipping openocd build, as likely to fail"
+    SKIP_OPENOCD=${SKIP_OPENOCD-1}
+fi
+
 # Install prerequisites
 sudo apt install -y jq cmake libtool automake libusb-1.0-0-dev libhidapi-dev libftdi1-dev
 # Risc-V prerequisites
@@ -36,7 +46,9 @@ if [[ "$SKIP_RISCV" != 1 ]]; then
     # Takes ages to build
     ../packages/linux/riscv/build-riscv-gcc.sh
 fi
-../packages/linux/openocd/build-openocd.sh
+if [[ "$SKIP_OPENOCD" != 1 ]]; then
+    ../packages/linux/openocd/build-openocd.sh
+fi
 ../packages/linux/picotool/build-picotool.sh
 cd ..
 
@@ -64,21 +76,23 @@ pushd "$builddir/picotool-install/"
 tar -a -cf "$topd/bin/$filename" * .keep
 popd
 
-# Package OpenOCD separately as well
+if [[ "$SKIP_OPENOCD" != 1 ]]; then
+    # Package OpenOCD separately as well
 
-version=($("./$builddir/openocd-install/usr/local/bin/openocd" --version 2>&1))
-version=${version[0]}
-version=${version[3]}
-version=$(echo $version | cut -d "-" -f 1)
+    version=($("./$builddir/openocd-install/usr/local/bin/openocd" --version 2>&1))
+    version=${version[0]}
+    version=${version[3]}
+    version=$(echo $version | cut -d "-" -f 1)
 
-echo "OpenOCD version $version"
+    echo "OpenOCD version $version"
 
-filename="openocd-${version}-${suffix}.tar.gz"
+    filename="openocd-${version}-${suffix}.tar.gz"
 
-echo "Saving OpenOCD package to $filename"
-pushd "$builddir/openocd-install/usr/local/bin"
-tar -a -cf "$topd/bin/$filename" * -C "../share/openocd" "scripts"
-popd
+    echo "Saving OpenOCD package to $filename"
+    pushd "$builddir/openocd-install/usr/local/bin"
+    tar -a -cf "$topd/bin/$filename" * -C "../share/openocd" "scripts"
+    popd
+fi
 
 if [[ "$SKIP_RISCV" != 1 ]]; then
     # Package riscv toolchain separately as well

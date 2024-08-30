@@ -2,6 +2,16 @@
 
 set -euo pipefail
 
+# Defaults
+SKIP_RISCV=${SKIP_RISCV-0}
+if git clone https://git.savannah.nongnu.org/git/git2cl.git; then
+    SKIP_OPENOCD=${SKIP_OPENOCD-0}
+else
+    # Clone is failing, so skip build
+    echo "Skipping openocd build, as likely to fail"
+    SKIP_OPENOCD=${SKIP_OPENOCD-1}
+fi
+
 # Install prerequisites
 arch -x86_64 /usr/local/bin/brew install jq libtool libusb automake hidapi
 arch -arm64 /opt/homebrew/bin/brew install jq libtool libusb automake hidapi
@@ -47,7 +57,7 @@ if [[ "$SKIP_RISCV" != 1 ]]; then
     # Takes ages to build
     ../packages/macos/riscv/build-riscv-gcc.sh
 fi
-if [[ $(uname -m) == 'arm64' ]]; then
+if [[ "$SKIP_OPENOCD" != 1 ]] && [[ $(uname -m) == 'arm64' ]]; then
     ../packages/macos/openocd/build-openocd.sh
 fi
 arch -x86_64 ../packages/macos/picotool/build-picotool.sh
@@ -78,7 +88,7 @@ pushd "$builddir/picotool-install/"
 tar -a -cf "$topd/bin/$filename" * .keep
 popd
 
-if [[ $(uname -m) == 'arm64' ]]; then
+if [[ "$SKIP_OPENOCD" != 1 ]] && [[ $(uname -m) == 'arm64' ]]; then
     # Package OpenOCD separately as well
 
     version=($("./$builddir/openocd-install/usr/local/bin/openocd" --version 2>&1))
