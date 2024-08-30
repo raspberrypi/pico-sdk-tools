@@ -235,16 +235,8 @@ if (-not $SkipDownload) {
   msys 'pacman --noconfirm -Suu'
 
   msys "pacman -S --noconfirm --needed autoconf automake git libtool make pactoys pkg-config wget"
-  # Risc-V requirements
-  # base-devel minus texinfo
-  msys "pacman -S --noconfirm --needed base binutils bison diffstat diffutils dos2unix file flex gawk gettext grep make patch sed tar"
-  msys "pacman -S --noconfirm --needed curl python3 gmp gperf patchutils expat"
   # pacboy adds MINGW_PACKAGE_PREFIX to package names suffixed with :p
-  msys "pacboy -S --noconfirm --needed cmake:p ninja:p toolchain:p libusb:p hidapi:p libslirp:p mpc:p bc:p zlib:p mpfr:p"
-}
-
-if (-not (Test-Path ".\build\riscv-install\mingw$bitness")) {
-  msys "cd build && ../packages/windows/riscv/build-riscv-gcc.sh $bitness $mingw_arch"
+  msys "pacboy -S --noconfirm --needed cmake:p ninja:p toolchain:p libusb:p hidapi:p"
 }
 
 if (-not (Test-Path ".\build\openocd-install\mingw$bitness")) {
@@ -305,14 +297,3 @@ $filename = 'openocd-{0}-{1}.zip' -f
 
 Write-Host "Saving OpenOCD package to $filename"
 exec { tar -a -cf "bin\$filename" -C "build\openocd-install\mingw$bitness\bin" * -C "..\share\openocd" "scripts" }
-
-# Package Risc-V separately as well
-
-$version = "14"
-
-$filename = 'riscv-toolchain-{0}-{1}.zip' -f
-  $version,
-  $suffix
-
-Write-Host "Saving Risc-V toolchain package to $filename"
-exec { tar -a -cf "bin\$filename" -C "build\riscv-install" * }
