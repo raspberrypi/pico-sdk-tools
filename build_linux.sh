@@ -4,13 +4,7 @@ set -euo pipefail
 
 # Defaults
 SKIP_RISCV=${SKIP_RISCV-0}
-if git clone https://git.savannah.nongnu.org/git/git2cl.git; then
-    SKIP_OPENOCD=${SKIP_OPENOCD-0}
-else
-    # Clone is failing, so skip build
-    echo "Skipping openocd build, as likely to fail"
-    SKIP_OPENOCD=${SKIP_OPENOCD-1}
-fi
+SKIP_OPENOCD=${SKIP_OPENOCD-0}
 
 # Install prerequisites
 sudo apt install -y jq cmake libtool automake libusb-1.0-0-dev libhidapi-dev libftdi1-dev
@@ -42,12 +36,15 @@ done < <(echo "$repos")
 
 
 cd $builddir
+if [[ "$SKIP_OPENOCD" != 1 ]]; then
+    if ../packages/linux/openocd/build-openocd.sh; then
+        echo "OpenOCD Build failed"
+        SKIP_OPENOCD=1
+    fi
+fi
 if [[ "$SKIP_RISCV" != 1 ]]; then
     # Takes ages to build
     ../packages/linux/riscv/build-riscv-gcc.sh
-fi
-if [[ "$SKIP_OPENOCD" != 1 ]]; then
-    ../packages/linux/openocd/build-openocd.sh
 fi
 ../packages/linux/picotool/build-picotool.sh
 cd ..
