@@ -48,7 +48,7 @@ done < <(echo "$repos")
 
 cd $builddir
 if [[ "$SKIP_OPENOCD" != 1 ]] && [[ $(uname -m) == 'arm64' ]]; then
-    if ../packages/macos/openocd/build-openocd.sh; then
+    if ! ../packages/macos/openocd/build-openocd.sh; then
         echo "OpenOCD Build failed"
         SKIP_OPENOCD=1
     fi

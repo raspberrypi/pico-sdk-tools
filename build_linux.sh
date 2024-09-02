@@ -37,7 +37,7 @@ done < <(echo "$repos")
 
 cd $builddir
 if [[ "$SKIP_OPENOCD" != 1 ]]; then
-    if ../packages/linux/openocd/build-openocd.sh; then
+    if ! ../packages/linux/openocd/build-openocd.sh; then
         echo "OpenOCD Build failed"
         SKIP_OPENOCD=1
     fi
