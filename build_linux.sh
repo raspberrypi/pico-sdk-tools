@@ -7,8 +7,8 @@ SKIP_RISCV=${SKIP_RISCV-0}
 SKIP_OPENOCD=${SKIP_OPENOCD-0}
 
 # Install prerequisites
-sudo apt install -y jq cmake libtool automake libusb-1.0-0-dev libhidapi-dev libftdi1-dev
-# Risc-V prerequisites
+sudo apt install -y jq cmake libtool automake libusb-1.0-0-dev libhidapi-dev libftdi1-dev libgpiod-dev
+# RISC-V prerequisites
 sudo apt install -y autoconf automake autotools-dev curl python3 python3-pip libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev ninja-build git cmake libglib2.0-dev libslirp-dev
 
 repos=$(cat config/repositories.json | jq -c '.repositories[]')
@@ -94,11 +94,11 @@ fi
 if [[ "$SKIP_RISCV" != 1 ]]; then
     # Package riscv toolchain separately as well
     version="14"
-    echo "Risc-V Toolchain version $version"
+    echo "RISC-V Toolchain version $version"
 
     filename="riscv-toolchain-${version}-${suffix}.tar.gz"
 
-    echo "Saving Risc-V Toolchain package to $filename"
+    echo "Saving RISC-V Toolchain package to $filename"
     pushd "$builddir/riscv-install/"
     tar -a -cf "$topd/bin/$filename" *
     popd
