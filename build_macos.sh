@@ -7,17 +7,17 @@ SKIP_RISCV=${SKIP_RISCV-0}
 SKIP_OPENOCD=${SKIP_OPENOCD-0}
 
 # Install prerequisites
-arch -x86_64 /usr/local/bin/brew install jq libtool libusb automake hidapi
-arch -arm64 /opt/homebrew/bin/brew install jq libtool libusb automake hidapi
-# Risc-V prerequisites
+arch -x86_64 /usr/local/bin/brew install jq libtool libusb automake hidapi --quiet
+arch -arm64 /opt/homebrew/bin/brew install jq libtool libusb automake hidapi --quiet
+# RISC-V prerequisites
 echo "Listing local"
 ls /usr/local/bin
 rm /usr/local/bin/2to3*
 rm /usr/local/bin/idle3*
 rm /usr/local/bin/pip*
 rm /usr/local/bin/py*
-arch -x86_64 /usr/local/bin/brew install python3 gawk gnu-sed gmp mpfr libmpc isl zlib expat texinfo flock libslirp
-arch -arm64 /opt/homebrew/bin/brew install python3 gawk gnu-sed gmp mpfr libmpc isl zlib expat texinfo flock libslirp
+arch -x86_64 /usr/local/bin/brew install python3 gawk gnu-sed gmp mpfr libmpc isl zlib expat texinfo flock libslirp --quiet
+arch -arm64 /opt/homebrew/bin/brew install python3 gawk gnu-sed gmp mpfr libmpc isl zlib expat texinfo flock libslirp --quiet
 
 repos=$(cat config/repositories.json | jq -c '.repositories.[]')
 export version=$(cat ./version.txt)
@@ -110,29 +110,29 @@ if [[ "$SKIP_RISCV" != 1 ]]; then
 
     filename="riscv-toolchain-${version}-arm64-${suffix}.zip"
 
-    echo "Saving Risc-V Toolchain package to $filename"
+    echo "Saving RISC-V Toolchain package to $filename"
     pushd "$builddir/riscv-install/"
     tar -a -cf "$topd/bin/$filename" *
     popd
 
     # Package x64-mac riscv toolchain separately as well
     version="14"
-    echo "Risc-V Toolchain version $version"
+    echo "RISC-V Toolchain version $version"
 
     filename="riscv-toolchain-${version}-x64-mac.zip"
 
-    echo "Saving Risc-V Toolchain package to $filename"
+    echo "Saving RISC-V Toolchain package to $filename"
     pushd "$builddir/riscv-install-x64-mac/"
     tar -a -cf "$topd/bin/$filename" *
     popd
 
     # Package x64-win riscv toolchain separately as well
     version="14"
-    echo "Risc-V Toolchain version $version"
+    echo "RISC-V Toolchain version $version"
 
     filename="riscv-toolchain-${version}-x64-win.zip"
 
-    echo "Saving Risc-V Toolchain package to $filename"
+    echo "Saving RISC-V Toolchain package to $filename"
     pushd "$builddir/riscv-install-x64-win/"
     tar -a -cf "$topd/bin/$filename" *
     popd
