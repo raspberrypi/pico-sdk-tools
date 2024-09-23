@@ -6,9 +6,6 @@ set -euo pipefail
 SKIP_RISCV=${SKIP_RISCV-0}
 SKIP_OPENOCD=${SKIP_OPENOCD-0}
 
-export CFLAGS=-static
-export LDFLAGS=-static
-
 # Install prerequisites
 sudo apt install -y jq cmake libtool automake libusb-1.0-0-dev libhidapi-dev libftdi1-dev
 # RISC-V prerequisites

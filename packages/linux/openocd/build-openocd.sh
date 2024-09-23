@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+export CFLAGS=-static
+export LDFLAGS=-static
+
 cd openocd
 sed -i -e 's/uint /unsigned int /g' ./src/flash/nor/rp2040.c
 ./bootstrap
