@@ -4,7 +4,7 @@ permissions:
   contents: write
 
 env:
-  SKIP_RISCV: 1
+  SKIP_RISCV: 0
 
 jobs:
   build_windows:

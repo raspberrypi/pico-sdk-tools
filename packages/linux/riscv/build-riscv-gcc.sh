@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+export CFLAGS=-static
+export LDFLAGS=-static
+
 INSTALLDIR="riscv-install"
 rm -rf $INSTALLDIR
 mkdir -p $INSTALLDIR
