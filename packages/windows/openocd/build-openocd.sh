@@ -14,3 +14,5 @@ make -j$(nproc)
 DESTDIR="$PWD/../openocd-install" make install
 cp "/mingw$BITNESS/bin/libhidapi-0.dll" "$PWD/../openocd-install/mingw$BITNESS/bin"
 cp "/mingw$BITNESS/bin/libusb-1.0.dll" "$PWD/../openocd-install/mingw$BITNESS/bin"
+rm "$DESTDIR/scripts/target/1986*.cfg"
+rm "$DESTDIR/scripts/target/mdr32*.cfg"
