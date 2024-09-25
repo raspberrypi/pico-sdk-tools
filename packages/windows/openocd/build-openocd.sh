@@ -17,4 +17,4 @@ cp "/mingw$BITNESS/bin/libusb-1.0.dll" "$PWD/../openocd-install/mingw$BITNESS/bi
 
 # Removing files with special char in their names
 # they cause issues with some decompression libraries
-rm "$DESTDIR/scripts/target/1986*.cfg"
+rm "$PWD/../openocd-install/mingw$BITNESS/scripts/target/1986*.cfg"
