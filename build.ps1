@@ -295,5 +295,9 @@ $filename = 'openocd-{0}-{1}.zip' -f
   ($Matches.version -replace '-.*$', ''),
   $suffix
 
+# Removing files with special char in their names
+# they cause issues with some decompression libraries
+exec { Remove-Item "build\openocd-install\mingw$bitness\share\openocd\scripts\target\1986*.cfg" }
+
 Write-Host "Saving OpenOCD package to $filename"
 exec { tar -a -cf "bin\$filename" -C "build\openocd-install\mingw$bitness\bin" * -C "..\share\openocd" "scripts" }
