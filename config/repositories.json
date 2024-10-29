@@ -2,20 +2,20 @@
   "repositories": [
     {
       "href": "https://github.com/raspberrypi/pico-sdk.git",
-      "tree": "2.2.0"
+      "tree": "develop"
     },
     {
       "href": "https://github.com/raspberrypi/picotool.git",
-      "tree": "2.2.0-a4"
+      "tree": "develop"
     },
     {
       "href": "https://github.com/raspberrypi/openocd.git",
-      "tree": "sdk-2.2.0",
+      "tree": "rpi-common",
       "submodules": true
     },
     {
       "href": "https://github.com/riscv/riscv-gnu-toolchain.git",
-      "tree": "2025.08.29"
+      "tree": "master"
     }
   ]
 }
