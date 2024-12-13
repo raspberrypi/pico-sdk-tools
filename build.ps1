@@ -24,15 +24,7 @@ param (
   $SkipDownload,
 
   [switch]
-  $SkipSigning,
-
-  [ValidateSet('zlib', 'bzip2', 'lzma')]
-  [string]
-  $Compression = 'lzma',
-
-  [ValidateSet('system', 'user')]
-  [string]
-  $BuildType = 'system'
+  $SkipSigning
 )
 
 #Requires -Version 7.2
@@ -86,7 +78,7 @@ $ProgressPreference = 'SilentlyContinue'
 
 Write-Host "Building from $ConfigFile"
 
-$suffix = [io.path]::GetFileNameWithoutExtension($ConfigFile) + ($BuildType -eq 'user' ? '-user' : '' )
+$suffix = [io.path]::GetFileNameWithoutExtension($ConfigFile)
 
 $tools = (Get-Content '.\config\tools.json' | ConvertFrom-Json).tools
 $repositories = (Get-Content '.\config\repositories.json' | ConvertFrom-Json).repositories
