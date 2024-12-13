@@ -28,26 +28,6 @@ param (
 )
 
 #Requires -Version 7.2
-
-function crawl {
-    param ([string]$url)
-
-    (Invoke-WebRequest $url -UseBasicParsing).Links |
-    Where-Object {
-        ($_ | Get-Member href) -and
-        [uri]::IsWellFormedUriString($_.href, [System.UriKind]::RelativeOrAbsolute)
-    } |
-    ForEach-Object {
-        $href = [System.Net.WebUtility]::HtmlDecode($_.href)
-
-        try {
-        (New-Object System.Uri([uri]$url, $href)).AbsoluteUri
-        }
-        catch {
-            $href
-        }
-    }
-}
     
 function mkdirp {
     param ([string] $dir, [switch] $clean)
@@ -231,11 +211,11 @@ if (-not $SkipDownload) {
   msys "pacboy -S --noconfirm --needed cmake:p ninja:p toolchain:p libusb:p hidapi:p libslirp:p"
 }
 
-if (-not (Test-Path ".\build\riscv-install\$msysEnv")) {
+if (-not (Test-Path ".\build\riscv-install\$msysEnv") -and ($env:SKIP_RISCV -ne '1')) {
   msys "cd build && ../packages/windows/riscv/build-riscv-gcc.sh"
 }
 
-if (-not (Test-Path ".\build\openocd-install\$msysEnv")) {
+if (-not (Test-Path ".\build\openocd-install\$msysEnv") -and ($env:SKIP_OPENOCD -ne '1')) {
   msys "cd build && ../packages/windows/openocd/build-openocd.sh"
 }
 
