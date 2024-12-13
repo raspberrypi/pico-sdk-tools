@@ -23,11 +23,13 @@ jobs:
         uses: webfactory/ssh-agent@v0.7.0
         with:
           ssh-private-key: ${{ secrets.SSH_KEY }}
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
       - name: Build
         run: |
           subst P: .
           P:
-          ./build.ps1 ./config/x64-win.json -SkipSigning
+          ./build.ps1 ./config/x64-win.json -SkipSigning -MSYS2Path (msys2 -c 'cygpath -m /').TrimEnd('\/')
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
