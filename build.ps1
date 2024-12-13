@@ -248,7 +248,7 @@ $filename = 'pico-sdk-tools-{0}-{1}.zip' -f
   $suffix
 
 Write-Host "Saving pico-sdk-tools package to $filename"
-exec { tar -a -cf "bin\$filename" -C "build\pico-sdk-tools\$msysEnv\" * }
+exec { tar -a -cf "bin\$filename" -C "build\pico-sdk-tools\$msysEnv" '*' }
 
 # Package picotool separately as well
 
@@ -260,7 +260,7 @@ $filename = 'picotool-{0}-{1}.zip' -f
   $suffix
 
 Write-Host "Saving picotool package to $filename"
-exec { tar -a -cf "bin\$filename" -C "build\picotool-install\$msysEnv\" * }
+exec { tar -a -cf "bin\$filename" -C "build\picotool-install\$msysEnv" '*' }
 
 # Package OpenOCD separately as well
 
@@ -275,18 +275,18 @@ $filename = 'openocd-{0}-{1}.zip' -f
 
 # Removing files with special char in their names
 # they cause issues with some decompression libraries
-exec { Remove-Item "build\openocd-install\mingw$bitness\share\openocd\scripts\target\1986*.cfg" }
+Remove-Item "build\openocd-install\$msysEnv\share\openocd\scripts\target\1986*.cfg"
 
 Write-Host "Saving OpenOCD package to $filename"
-exec { tar -a -cf "bin\$filename" -C "build\openocd-install\$msysEnv\bin" * -C "..\share\openocd" "scripts" }
+exec { tar -a -cf "bin\$filename" -C "build\openocd-install\$msysEnv\bin" '*' -C "..\share\openocd" "scripts" }
 
 # Package Risc-V separately as well
 
-$version = "14"
+$version = (. ".\build\riscv-install\$msysEnv\bin\riscv32-unknown-elf-gcc.exe" -dumpversion) -split '\.'
 
 $filename = 'riscv-toolchain-{0}-{1}.zip' -f
-  $version,
+  $version[0],
   $suffix
 
 Write-Host "Saving Risc-V toolchain package to $filename"
-exec { tar -a -cf "bin\$filename" -C "build\riscv-install" * }
+exec { tar -a -cf "bin\$filename" -C "build\riscv-install\$msysEnv" '*' }
