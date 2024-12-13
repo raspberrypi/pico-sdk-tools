@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-BITNESS=$1
-ARCH=$2
+BUILDDIR=$(pwd)
+INSTALLDIR="openocd-install"
 
 cd openocd
 sed -i -e 's/uint /unsigned int /g' ./src/flash/nor/rp2040.c
@@ -11,6 +11,7 @@ sed -i -e 's/uint /unsigned int /g' ./src/flash/nor/rp2040.c
 ./configure --disable-werror
 make clean
 make -j$(nproc)
-DESTDIR="$PWD/../openocd-install" make install
-cp "/mingw$BITNESS/bin/libhidapi-0.dll" "$PWD/../openocd-install/mingw$BITNESS/bin"
-cp "/mingw$BITNESS/bin/libusb-1.0.dll" "$PWD/../openocd-install/mingw$BITNESS/bin"
+DESTDIR="$BUILDDIR/$INSTALLDIR" make install
+
+cd "$BUILDDIR/$INSTALLDIR/${MSYSTEM,,}/bin"
+"$BUILDDIR/../packages/common/copy-deps.sh"

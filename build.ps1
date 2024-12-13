@@ -97,8 +97,8 @@ if ("" -ne $Version) {
   $version = (Get-Content "$PSScriptRoot\version.txt").Trim()
 }
 $config = Get-Content $ConfigFile | ConvertFrom-Json
-$bitness = $config.bitness
-$mingw_arch = $config.mingwArch
+$env:MSYSTEM = $config.msysEnv
+$msysEnv = $config.msysEnv.ToLowerInvariant()
 $downloads = $config.downloads
 
 mkdirp "build"
@@ -223,8 +223,8 @@ function msys {
 
 # Preserve the current working directory
 $env:CHERE_INVOKING = 'yes'
-# Start MINGW32/64 environment
-$env:MSYSTEM = "MINGW$bitness"
+# Use real symlinks
+$env:MSYS = "winsymlinks:nativestrict"
 
 if (-not $SkipDownload) {
   # First run setup
@@ -234,33 +234,37 @@ if (-not $SkipDownload) {
   # Normal update
   msys 'pacman --noconfirm -Suu'
 
-  msys "pacman -S --noconfirm --needed autoconf automake git libtool make pactoys pkg-config wget"
+  msys "pacman -S --noconfirm --needed autoconf automake base-devel expat git libtool pactoys patchutils pkg-config"
   # pacboy adds MINGW_PACKAGE_PREFIX to package names suffixed with :p
-  msys "pacboy -S --noconfirm --needed cmake:p ninja:p toolchain:p libusb:p hidapi:p"
+  msys "pacboy -S --noconfirm --needed cmake:p ninja:p toolchain:p libusb:p hidapi:p libslirp:p"
 }
 
-if (-not (Test-Path ".\build\openocd-install\mingw$bitness")) {
-  msys "cd build && ../packages/windows/openocd/build-openocd.sh $bitness $mingw_arch"
+if (-not (Test-Path ".\build\riscv-install\$msysEnv")) {
+  msys "cd build && ../packages/windows/riscv/build-riscv-gcc.sh"
 }
 
-if (-not (Test-Path ".\build\picotool-install\mingw$bitness")) {
-  msys "cd build && ../packages/windows/picotool/build-picotool.sh $bitness $mingw_arch $version"
+if (-not (Test-Path ".\build\openocd-install\$msysEnv")) {
+  msys "cd build && ../packages/windows/openocd/build-openocd.sh"
+}
+
+if (-not (Test-Path ".\build\picotool-install\$msysEnv")) {
+  msys "cd build && ../packages/windows/picotool/build-picotool.sh $version"
 }
 
 if ($version.Substring(0, 1) -ge 2) {
   # Sign files before packaging up the installer
-  sign "build\openocd-install\mingw$bitness\bin\openocd.exe",
-  "build\pico-sdk-tools\mingw$bitness\pioasm\pioasm.exe",
-  "build\picotool-install\mingw$bitness\picotool\picotool.exe"
+  sign "build\openocd-install\$msysEnv\bin\openocd.exe",
+  "build\pico-sdk-tools\$msysEnv\pioasm\pioasm.exe",
+  "build\picotool-install\$msysEnv\picotool\picotool.exe"
 } else {
   $template = Get-Content ".\packages\windows\pico-sdk-tools\pico-sdk-tools-config-version.cmake" -Raw
-  $ExecutionContext.InvokeCommand.ExpandString($template) | Set-Content ".\build\pico-sdk-tools\mingw$bitness\pico-sdk-tools-config-version.cmake"
+  $ExecutionContext.InvokeCommand.ExpandString($template) | Set-Content ".\build\pico-sdk-tools\$msysEnv\pico-sdk-tools-config-version.cmake"
 
   # Sign files before packaging up the installer
-  sign "build\openocd-install\mingw$bitness\bin\openocd.exe",
-  "build\pico-sdk-tools\mingw$bitness\elf2uf2.exe",
-  "build\pico-sdk-tools\mingw$bitness\pioasm.exe",
-  "build\picotool-install\mingw$bitness\picotool.exe"
+  sign "build\openocd-install\$msysEnv\bin\openocd.exe",
+  "build\pico-sdk-tools\$msysEnv\elf2uf2.exe",
+  "build\pico-sdk-tools\$msysEnv\pioasm.exe",
+  "build\picotool-install\$msysEnv\picotool.exe"
 }
 
 # Package pico-sdk-tools separately as well
@@ -270,11 +274,11 @@ $filename = 'pico-sdk-tools-{0}-{1}.zip' -f
   $suffix
 
 Write-Host "Saving pico-sdk-tools package to $filename"
-exec { tar -a -cf "bin\$filename" -C "build\pico-sdk-tools\mingw$bitness\" * }
+exec { tar -a -cf "bin\$filename" -C "build\pico-sdk-tools\$msysEnv\" * }
 
 # Package picotool separately as well
 
-$version = (cmd /c ".\build\picotool-install\mingw$bitness\picotool\picotool.exe" version -s '2>&1')
+$version = (cmd /c ".\build\picotool-install\$msysEnv\picotool\picotool.exe" version -s '2>&1')
 Write-Host "Picotool version $version"
 
 $filename = 'picotool-{0}-{1}.zip' -f
@@ -282,11 +286,11 @@ $filename = 'picotool-{0}-{1}.zip' -f
   $suffix
 
 Write-Host "Saving picotool package to $filename"
-exec { tar -a -cf "bin\$filename" -C "build\picotool-install\mingw$bitness\" * }
+exec { tar -a -cf "bin\$filename" -C "build\picotool-install\$msysEnv\" * }
 
 # Package OpenOCD separately as well
 
-$version = (cmd /c ".\build\openocd-install\mingw$bitness\bin\openocd.exe" --version '2>&1')[0]
+$version = (cmd /c ".\build\openocd-install\$msysEnv\bin\openocd.exe" --version '2>&1')[0]
 if (-not ($version -match 'Open On-Chip Debugger (?<version>[a-zA-Z0-9\.\-+]+) \((?<timestamp>[0-9\-:]+)\)')) {
   Write-Error 'Could not determine openocd version'
 }
@@ -300,4 +304,15 @@ $filename = 'openocd-{0}-{1}.zip' -f
 exec { Remove-Item "build\openocd-install\mingw$bitness\share\openocd\scripts\target\1986*.cfg" }
 
 Write-Host "Saving OpenOCD package to $filename"
-exec { tar -a -cf "bin\$filename" -C "build\openocd-install\mingw$bitness\bin" * -C "..\share\openocd" "scripts" }
+exec { tar -a -cf "bin\$filename" -C "build\openocd-install\$msysEnv\bin" * -C "..\share\openocd" "scripts" }
+
+# Package Risc-V separately as well
+
+$version = "14"
+
+$filename = 'riscv-toolchain-{0}-{1}.zip' -f
+  $version,
+  $suffix
+
+Write-Host "Saving Risc-V toolchain package to $filename"
+exec { tar -a -cf "bin\$filename" -C "build\riscv-install" * }

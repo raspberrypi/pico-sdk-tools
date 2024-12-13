@@ -2,9 +2,9 @@
 
 set -euo pipefail
 
-BITNESS=$1
-ARCH=$2
-sdkVersion=$3
+BUILDDIR=$(pwd)
+
+sdkVersion=$1
 
 export PICO_SDK_PATH="$PWD/pico-sdk"
 export LDFLAGS="-static -static-libgcc -static-libstdc++"
@@ -21,7 +21,7 @@ if [ ${sdkVersion:0:1} -ge 2 ]; then
     cmake --build .
 
     cd ../../../..
-    INSTALLDIR="pico-sdk-tools/mingw$BITNESS"
+    INSTALLDIR="pico-sdk-tools/${MSYSTEM,,}"
     mkdir -p $INSTALLDIR
     cmake --install pico-sdk/tools/pioasm/build/ --prefix $INSTALLDIR
     touch $INSTALLDIR/.keep
@@ -45,7 +45,7 @@ else
     cmake --build .
 
     cd ../../../..
-    INSTALLDIR="pico-sdk-tools/mingw$BITNESS"
+    INSTALLDIR="pico-sdk-tools/${MSYSTEM,,}"
     mkdir -p $INSTALLDIR
     cp pico-sdk-$sdkVersion/tools/elf2uf2/build/elf2uf2.exe $INSTALLDIR
     cp pico-sdk-$sdkVersion/tools/pioasm/build/pioasm.exe $INSTALLDIR
@@ -59,8 +59,9 @@ cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release -DPICOTOOL_FLAT_INSTALL=1
 cmake --build .
 
 cd ../..
-INSTALLDIR="picotool-install/mingw$BITNESS"
+INSTALLDIR="picotool-install/${MSYSTEM,,}"
 mkdir -p $INSTALLDIR
 cmake --install picotool/build/ --prefix $INSTALLDIR
 touch $INSTALLDIR/.keep
-cp "/mingw$BITNESS/bin/libusb-1.0.dll" $INSTALLDIR/picotool
+cd $INSTALLDIR/picotool
+"$BUILDDIR/../packages/windows/copy-deps.sh"
