@@ -130,6 +130,8 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
   $env:PATH = $env:PATH + ';' + (Resolve-Path .\build\git\cmd).Path
 }
 
+exec { git config --global core.autocrlf false }
+
 $repositories | ForEach-Object {
   $repodir = Join-Path 'build' ([IO.Path]::GetFileNameWithoutExtension($_.href))
   $repodir = $repodir.TrimEnd("-rp2350")
