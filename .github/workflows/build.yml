@@ -6,7 +6,8 @@ permissions:
   contents: write
 
 env:
-  SKIP_RISCV: 1
+  SKIP_RISCV: 0
+  SKIP_OPENOCD: 0
 
 jobs:
   build_windows:
@@ -23,7 +24,10 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_KEY }}
       - name: Build
-        run: ./build.ps1 ./config/x64-win.json -SkipSigning
+        run: |
+          subst P: .
+          P:
+          ./build.ps1 ./config/x64-win.json -SkipSigning
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
