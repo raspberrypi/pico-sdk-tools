@@ -14,4 +14,4 @@ make -j$(nproc)
 DESTDIR="$BUILDDIR/$INSTALLDIR" make install
 
 cd "$BUILDDIR/$INSTALLDIR/${MSYSTEM,,}/bin"
-"$BUILDDIR/../packages/common/copy-deps.sh"
+"$BUILDDIR/../packages/windows/copy-deps.sh"
