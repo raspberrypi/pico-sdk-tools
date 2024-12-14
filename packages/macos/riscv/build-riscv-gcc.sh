@@ -22,4 +22,3 @@ cd ..
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 $SCRIPT_DIR/build-riscv-gcc-other.sh "https://buildbot.embecosm.com/job/riscv32-gcc-macos-release/21/artifact/riscv32-embecosm-macos-gcc13.3.0.zip" "x64-mac"
-$SCRIPT_DIR/build-riscv-gcc-other.sh "https://buildbot.embecosm.com/job/riscv32-gcc-win64-release/24/artifact/riscv32-embecosm-win64-gcc13.2.0.zip" "x64-win"
