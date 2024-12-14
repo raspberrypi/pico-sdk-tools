@@ -282,10 +282,10 @@ exec { tar -a -cf "bin\$filename" -C "build\openocd-install\$msysEnv\bin" '*' -C
 
 # Package Risc-V separately as well
 
-$version = (. ".\build\riscv-install\$msysEnv\bin\riscv32-unknown-elf-gcc.exe" -dumpversion) -split '\.'
+$version = ((. ".\build\riscv-install\$msysEnv\bin\riscv32-unknown-elf-gcc.exe" -dumpversion) -split '\.')[0]
 
 $filename = 'riscv-toolchain-{0}-{1}.zip' -f
-  $version[0],
+  $version,
   $suffix
 
 Write-Host "Saving Risc-V toolchain package to $filename"
