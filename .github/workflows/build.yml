@@ -6,7 +6,8 @@ permissions:
   contents: write
 
 env:
-  SKIP_RISCV: 1
+  SKIP_RISCV: 0
+  SKIP_OPENOCD: 0
 
 jobs:
   build_windows:
@@ -17,13 +18,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup SSH Auth
-        if: runner.environment == 'github-hosted'
-        uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
+      # - name: Setup SSH Auth
+      #   if: runner.environment == 'github-hosted'
+      #   uses: webfactory/ssh-agent@v0.7.0
+      #   with:
+      #     ssh-private-key: ${{ secrets.SSH_KEY }}
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
       - name: Build
-        run: ./build.ps1 ./config/x64-win.json -SkipSigning
+        run: |
+          subst P: .
+          P:
+          ./build.ps1 ./config/x64-win.json -SkipSigning -MSYS2Path (msys2 -c 'cygpath -m /').TrimEnd('\/')
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -32,6 +38,7 @@ jobs:
             bin/picotool-*-x64-win.zip
             bin/pico-sdk-tools-*-x64-win.zip
             bin/openocd-*-x64-win.zip
+            bin/riscv-toolchain-*-x64-win.zip
       - name: Add Release Asset
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -40,6 +47,7 @@ jobs:
             bin/picotool-*-x64-win.zip
             bin/pico-sdk-tools-*-x64-win.zip
             bin/openocd-*-x64-win.zip
+            bin/riscv-toolchain-*-x64-win.zip
 
   build_macos:
     name: Build MacOS
@@ -57,11 +65,11 @@ jobs:
         if: runner.environment == 'github-hosted'
         run: |
           NONINTERACTIVE=1 arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-      - name: Setup SSH Auth
-        if: runner.environment == 'github-hosted'
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
+      # - name: Setup SSH Auth
+      #   if: runner.environment == 'github-hosted'
+      #   uses: webfactory/ssh-agent@v0.9.0
+      #   with:
+      #     ssh-private-key: ${{ secrets.SSH_KEY }}
       - name: Build
         run: ./build_macos.sh
       - name: Upload Artifact
@@ -96,11 +104,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup SSH Auth
-        if: runner.environment == 'github-hosted'
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
+      # - name: Setup SSH Auth
+      #   if: runner.environment == 'github-hosted'
+      #   uses: webfactory/ssh-agent@v0.9.0
+      #   with:
+      #     ssh-private-key: ${{ secrets.SSH_KEY }}
       - name: Build
         run: ./build_linux.sh
       - name: Upload Artifact
