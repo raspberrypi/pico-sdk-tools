@@ -12,12 +12,12 @@ arch -arm64 /opt/homebrew/bin/brew install jq libtool libusb automake hidapi --q
 # RISC-V prerequisites
 echo "Listing local"
 ls /usr/local/bin
-rm /usr/local/bin/2to3*
-rm /usr/local/bin/idle3*
-rm /usr/local/bin/pip*
-rm /usr/local/bin/py*
-arch -x86_64 /usr/local/bin/brew install python3 gawk gnu-sed gmp mpfr libmpc isl zlib expat texinfo flock libslirp --quiet
-arch -arm64 /opt/homebrew/bin/brew install python3 gawk gnu-sed gmp mpfr libmpc isl zlib expat texinfo flock libslirp --quiet
+rm /usr/local/bin/2to3* || true
+rm /usr/local/bin/idle3* || true
+rm /usr/local/bin/pip* || true
+rm /usr/local/bin/py* || true
+arch -x86_64 /usr/local/bin/brew install python3 gawk gnu-sed make gmp mpfr libmpc isl zlib expat texinfo flock libslirp --quiet
+arch -arm64 /opt/homebrew/bin/brew install python3 gawk gnu-sed make gmp mpfr libmpc isl zlib expat texinfo flock libslirp --quiet
 
 repos=$(cat config/repositories.json | jq -c '.repositories.[]')
 export version=$(cat ./version.txt)
