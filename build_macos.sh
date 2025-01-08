@@ -125,15 +125,4 @@ if [[ "$SKIP_RISCV" != 1 ]]; then
     pushd "$builddir/riscv-install-x64-mac/"
     tar -a -cf "$topd/bin/$filename" *
     popd
-
-    # Package x64-win riscv toolchain separately as well
-    version="14"
-    echo "RISC-V Toolchain version $version"
-
-    filename="riscv-toolchain-${version}-x64-win.zip"
-
-    echo "Saving RISC-V Toolchain package to $filename"
-    pushd "$builddir/riscv-install-x64-win/"
-    tar -a -cf "$topd/bin/$filename" *
-    popd
 fi
