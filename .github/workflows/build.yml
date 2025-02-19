@@ -6,8 +6,8 @@ permissions:
   contents: write
 
 env:
-  SKIP_RISCV: 0
-  SKIP_OPENOCD: 0
+  SKIP_RISCV: 1
+  SKIP_OPENOCD: 1
 
 jobs:
   build_windows:
