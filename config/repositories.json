@@ -2,11 +2,11 @@
   "repositories": [
     {
       "href": "https://github.com/raspberrypi/pico-sdk.git",
-      "tree": "2.1.0"
+      "tree": "2.1.1"
     },
     {
       "href": "https://github.com/raspberrypi/picotool.git",
-      "tree": "2.1.0"
+      "tree": "2.1.1"
     },
     {
       "href": "https://github.com/raspberrypi/openocd.git",
