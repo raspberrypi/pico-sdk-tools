@@ -7,4 +7,4 @@ The tools currently included are:
 * **picotool**
 * **OpenOCD** (includes `linuxgpiod` and `cmsis-dap` adapters)
 * **pioasm**
-* **RISC-V Toolchain for Raspberry Pi OS** - for other OSs, the extension uses the compilers from [Core-V](https://www.embecosm.com/resources/tool-chain-downloads/#corev)
+* **RISC-V Toolchain**
