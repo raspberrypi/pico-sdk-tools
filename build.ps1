@@ -262,31 +262,35 @@ $filename = 'picotool-{0}-{1}.zip' -f
 Write-Host "Saving picotool package to $filename"
 exec { tar -a -cf "bin\$filename" -C "build\picotool-install\$msysEnv" '*' }
 
-# Package OpenOCD separately as well
+if ($env:SKIP_OPENOCD -ne '1') {
+  # Package OpenOCD separately as well
 
-$version = (cmd /c ".\build\openocd-install\$msysEnv\bin\openocd.exe" --version '2>&1')[0]
-if (-not ($version -match 'Open On-Chip Debugger (?<version>[a-zA-Z0-9\.\-+]+) \((?<timestamp>[0-9\-:]+)\)')) {
-  Write-Error 'Could not determine openocd version'
+  $version = (cmd /c ".\build\openocd-install\$msysEnv\bin\openocd.exe" --version '2>&1')[0]
+  if (-not ($version -match 'Open On-Chip Debugger (?<version>[a-zA-Z0-9\.\-+]+) \((?<timestamp>[0-9\-:]+)\)')) {
+    Write-Error 'Could not determine openocd version'
+  }
+
+  $filename = 'openocd-{0}-{1}.zip' -f
+    ($Matches.version -replace '-.*$', ''),
+    $suffix
+
+  # Removing files with special char in their names
+  # they cause issues with some decompression libraries
+  Remove-Item "build\openocd-install\$msysEnv\share\openocd\scripts\target\1986*.cfg"
+
+  Write-Host "Saving OpenOCD package to $filename"
+  exec { tar -a -cf "bin\$filename" -C "build\openocd-install\$msysEnv\bin" '*' -C "..\share\openocd" "scripts" }
 }
 
-$filename = 'openocd-{0}-{1}.zip' -f
-  ($Matches.version -replace '-.*$', ''),
-  $suffix
+if ($env:SKIP_RISCV -ne '1') {
+  # Package Risc-V separately as well
 
-# Removing files with special char in their names
-# they cause issues with some decompression libraries
-Remove-Item "build\openocd-install\$msysEnv\share\openocd\scripts\target\1986*.cfg"
+  $version = ((. ".\build\riscv-install\$msysEnv\bin\riscv32-unknown-elf-gcc.exe" -dumpversion) -split '\.')[0]
 
-Write-Host "Saving OpenOCD package to $filename"
-exec { tar -a -cf "bin\$filename" -C "build\openocd-install\$msysEnv\bin" '*' -C "..\share\openocd" "scripts" }
+  $filename = 'riscv-toolchain-{0}-{1}.zip' -f
+    $version,
+    $suffix
 
-# Package Risc-V separately as well
-
-$version = ((. ".\build\riscv-install\$msysEnv\bin\riscv32-unknown-elf-gcc.exe" -dumpversion) -split '\.')[0]
-
-$filename = 'riscv-toolchain-{0}-{1}.zip' -f
-  $version,
-  $suffix
-
-Write-Host "Saving Risc-V toolchain package to $filename"
-exec { tar -a -cf "bin\$filename" -C "build\riscv-install\$msysEnv" '*' }
+  Write-Host "Saving Risc-V toolchain package to $filename"
+  exec { tar -a -cf "bin\$filename" -C "build\riscv-install\$msysEnv" '*' }
+}
