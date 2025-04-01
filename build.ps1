@@ -208,7 +208,7 @@ if (-not $SkipDownload) {
   # Normal update
   msys 'pacman --noconfirm -Suu'
 
-  msys "pacman -S --noconfirm --needed autoconf automake base-devel expat git libtool pactoys patchutils pkg-config"
+  msys "pacman -S --noconfirm --needed autoconf automake base-devel expat git libtool pactoys patchutils pkg-config bison flex"
   # pacboy adds MINGW_PACKAGE_PREFIX to package names suffixed with :p
   msys "pacboy -S --noconfirm --needed cmake:p ninja:p toolchain:p libusb:p hidapi:p libslirp:p"
 }
@@ -225,11 +225,22 @@ if (-not (Test-Path ".\build\picotool-install\$msysEnv")) {
   msys "cd build && ../packages/windows/picotool/build-picotool.sh $version"
 }
 
+if (-not (Test-Path ".\build\dtc-install\$msysEnv")) {
+  msys "cd build && ../packages/windows/dtc/build-dtc.sh $version"
+}
+
 if ($version.Substring(0, 1) -ge 2) {
   # Sign files before packaging up the installer
   sign "build\openocd-install\$msysEnv\bin\openocd.exe",
   "build\pico-sdk-tools\$msysEnv\pioasm\pioasm.exe",
-  "build\picotool-install\$msysEnv\picotool\picotool.exe"
+  "build\picotool-install\$msysEnv\picotool\picotool.exe",
+  "build\dtc-install\$msysEnv\bin\dtc.exe",
+  "build\dtc-install\$msysEnv\bin\convert-dtsv0.exe",
+  "build\dtc-install\$msysEnv\bin\dtdiff.exe",
+  "build\dtc-install\$msysEnv\bin\fdtdump.exe",
+  "build\dtc-install\$msysEnv\bin\fdtget.exe",
+  "build\dtc-install\$msysEnv\bin\fdtoverlay.exe",
+  "build\dtc-install\$msysEnv\bin\fdtput.exe"
 } else {
   $template = Get-Content ".\packages\windows\pico-sdk-tools\pico-sdk-tools-config-version.cmake" -Raw
   $ExecutionContext.InvokeCommand.ExpandString($template) | Set-Content ".\build\pico-sdk-tools\$msysEnv\pico-sdk-tools-config-version.cmake"
@@ -238,7 +249,14 @@ if ($version.Substring(0, 1) -ge 2) {
   sign "build\openocd-install\$msysEnv\bin\openocd.exe",
   "build\pico-sdk-tools\$msysEnv\elf2uf2.exe",
   "build\pico-sdk-tools\$msysEnv\pioasm.exe",
-  "build\picotool-install\$msysEnv\picotool.exe"
+  "build\picotool-install\$msysEnv\picotool.exe",
+  "build\dtc-install\$msysEnv\bin\dtc.exe",
+  "build\dtc-install\$msysEnv\bin\convert-dtsv0.exe",
+  "build\dtc-install\$msysEnv\bin\dtdiff.exe",
+  "build\dtc-install\$msysEnv\bin\fdtdump.exe",
+  "build\dtc-install\$msysEnv\bin\fdtget.exe",
+  "build\dtc-install\$msysEnv\bin\fdtoverlay.exe",
+  "build\dtc-install\$msysEnv\bin\fdtput.exe"
 }
 
 # Package pico-sdk-tools separately as well
@@ -261,6 +279,17 @@ $filename = 'picotool-{0}-{1}.zip' -f
 
 Write-Host "Saving picotool package to $filename"
 exec { tar -a -cf "bin\$filename" -C "build\picotool-install\$msysEnv" '*' }
+
+# Package dtc separately as well
+$versionOutput = & ".\build\dtc-install\$msysEnv\bin\dtc.exe" --version
+$version = $versionOutput -split '\s+' | Select-Object -Last 1
+Write-Host "DTC version $version"
+
+$filename = 'dtc-{0}-{1}.zip' -f
+  $version,
+  $suffix
+Write-Host "Saving DTC package to $filename"
+exec { tar -a -cf "bin\$filename" -C "build\dtc-install\$msysEnv" '*' }
 
 if ($env:SKIP_OPENOCD -ne '1') {
   # Package OpenOCD separately as well

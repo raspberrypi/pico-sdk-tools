@@ -8,3 +8,4 @@ The tools currently included are:
 * **OpenOCD** (includes `linuxgpiod` and `cmsis-dap` adapters)
 * **pioasm**
 * **RISC-V Toolchain**
+* **Device Tree Compiler**

@@ -39,6 +39,7 @@ jobs:
             bin/pico-sdk-tools-*-x64-win.zip
             bin/openocd-*-x64-win.zip
             bin/riscv-toolchain-*-x64-win.zip
+            bin/dtc-*-x64-win.zip
       - name: Add Release Asset
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -48,6 +49,7 @@ jobs:
             bin/pico-sdk-tools-*-x64-win.zip
             bin/openocd-*-x64-win.zip
             bin/riscv-toolchain-*-x64-win.zip
+            bin/dtc-*-x64-win.zip
 
   build_macos:
     name: Build MacOS
@@ -81,6 +83,7 @@ jobs:
             bin/pico-sdk-tools-*-mac.zip
             bin/openocd-*-mac.zip
             bin/riscv-toolchain-*.zip
+            bin/dtc-*-mac.tar.gz
       - name: Add Release Asset
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -90,6 +93,7 @@ jobs:
             bin/pico-sdk-tools-*-mac.zip
             bin/openocd-*-mac.zip
             bin/riscv-toolchain-*.zip
+            bin/dtc-*-mac.tar.gz
 
   build_linux:
     name: Build Linux
@@ -120,6 +124,7 @@ jobs:
             bin/pico-sdk-tools-*-lin.tar.gz
             bin/openocd-*-lin.tar.gz
             bin/riscv-toolchain-*-lin.tar.gz
+            bin/dtc-*-lin.tar.gz
       - name: Add Release Asset
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -129,3 +134,4 @@ jobs:
             bin/pico-sdk-tools-*-lin.tar.gz
             bin/openocd-*-lin.tar.gz
             bin/riscv-toolchain-*-lin.tar.gz
+            bin/dtc-*-lin.tar.gz

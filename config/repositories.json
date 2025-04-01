@@ -19,6 +19,10 @@
     {
       "href": "https://github.com/gcc-mirror/gcc",
       "tree": "releases/gcc-14"
+    },
+    {
+      "href": "https://git.kernel.org/pub/scm/utils/dtc/dtc.git",
+      "tree": "v1.7.2"
     }
   ]
 }

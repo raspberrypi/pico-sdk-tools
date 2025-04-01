@@ -7,8 +7,8 @@ SKIP_RISCV=${SKIP_RISCV-0}
 SKIP_OPENOCD=${SKIP_OPENOCD-0}
 
 # Install prerequisites
-arch -x86_64 /usr/local/bin/brew install jq libtool libusb automake hidapi --quiet
-arch -arm64 /opt/homebrew/bin/brew install jq libtool libusb automake hidapi --quiet
+arch -x86_64 /usr/local/bin/brew install jq libtool libusb automake hidapi bison flex pkgconf --quiet
+arch -arm64 /opt/homebrew/bin/brew install jq libtool libusb automake hidapi bison flex pkgconf --quiet
 # RISC-V prerequisites
 echo "Listing local"
 ls /usr/local/bin
@@ -60,6 +60,9 @@ fi
 arch -x86_64 ../packages/macos/picotool/build-picotool.sh
 arch -arm64 ../packages/macos/picotool/build-picotool.sh
 ../packages/macos/picotool/merge-picotool.sh
+
+arch -x86_64 ../packages/macos/dtc/build-dtc.sh
+arch -arm64 ../packages/macos/dtc/build-dtc.sh
 cd ..
 
 topd=$PWD
@@ -83,6 +86,15 @@ filename="picotool-${version}-${suffix}.zip"
 echo "Saving picotool package to $filename"
 pushd "$builddir/picotool-install/"
 tar -a -cf "$topd/bin/$filename" * .keep
+popd
+
+# Package dtc separately as well
+version=$("./$builddir/dtc-install/bin/dtc" --version | awk '{print $3}')
+echo "Device Tree Compiler version $version"
+filename="dtc-${version}-${suffix}.zip"
+echo "Saving dtc package to $filename"
+pushd "$builddir/dtc-install/"
+zip -yr "$topd/bin/$filename" * .keep
 popd
 
 if [[ "$SKIP_OPENOCD" != 1 ]] && [[ $(uname -m) == 'arm64' ]]; then
