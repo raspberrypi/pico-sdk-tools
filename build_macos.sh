@@ -57,9 +57,9 @@ if [[ "$SKIP_RISCV" != 1 ]]; then
     # Takes ages to build
     ../packages/macos/riscv/build-riscv-gcc.sh
 fi
-arch -x86_64 ../packages/macos/picotool/build-picotool.sh
-arch -arm64 ../packages/macos/picotool/build-picotool.sh
-../packages/macos/picotool/merge-picotool.sh
+#arch -x86_64 ../packages/macos/picotool/build-picotool.sh
+#arch -arm64 ../packages/macos/picotool/build-picotool.sh
+#../packages/macos/picotool/merge-picotool.sh
 
 arch -x86_64 ../packages/macos/dtc/build-dtc.sh
 arch -arm64 ../packages/macos/dtc/build-dtc.sh
@@ -78,15 +78,15 @@ if [ ${version:0:1} -ge 2 ]; then
 fi
 
 # Package picotool separately as well
-version=$("./$builddir/picotool-install/picotool/picotool" version -s)
-echo "Picotool version $version"
+#version=$("./$builddir/picotool-install/picotool/picotool" version -s)
+#echo "Picotool version $version"
 
-filename="picotool-${version}-${suffix}.zip"
+#filename="picotool-${version}-${suffix}.zip"
 
-echo "Saving picotool package to $filename"
-pushd "$builddir/picotool-install/"
-tar -a -cf "$topd/bin/$filename" * .keep
-popd
+#echo "Saving picotool package to $filename"
+#pushd "$builddir/picotool-install/"
+#tar -a -cf "$topd/bin/$filename" * .keep
+#popd
 
 # Package dtc separately as well
 version=$("./$builddir/dtc-install/bin/dtc" --version | awk '{print $3}')

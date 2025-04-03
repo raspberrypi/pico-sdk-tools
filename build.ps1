@@ -221,9 +221,9 @@ if (-not (Test-Path ".\build\openocd-install\$msysEnv") -and ($env:SKIP_OPENOCD 
   msys "cd build && ../packages/windows/openocd/build-openocd.sh"
 }
 
-if (-not (Test-Path ".\build\picotool-install\$msysEnv")) {
-  msys "cd build && ../packages/windows/picotool/build-picotool.sh $version"
-}
+#if (-not (Test-Path ".\build\picotool-install\$msysEnv")) {
+#  msys "cd build && ../packages/windows/picotool/build-picotool.sh $version"
+#}
 
 if (-not (Test-Path ".\build\dtc-install\$msysEnv")) {
   msys "cd build && ../packages/windows/dtc/build-dtc.sh $version"
@@ -270,15 +270,15 @@ exec { tar -a -cf "bin\$filename" -C "build\pico-sdk-tools\$msysEnv" '*' }
 
 # Package picotool separately as well
 
-$version = (cmd /c ".\build\picotool-install\$msysEnv\picotool\picotool.exe" version -s '2>&1')
-Write-Host "Picotool version $version"
+#$version = (cmd /c ".\build\picotool-install\$msysEnv\picotool\picotool.exe" version -s '2>&1')
+#Write-Host "Picotool version $version"
 
-$filename = 'picotool-{0}-{1}.zip' -f
-  $version,
-  $suffix
+#$filename = 'picotool-{0}-{1}.zip' -f
+#  $version,
+#  $suffix
 
-Write-Host "Saving picotool package to $filename"
-exec { tar -a -cf "bin\$filename" -C "build\picotool-install\$msysEnv" '*' }
+#Write-Host "Saving picotool package to $filename"
+#exec { tar -a -cf "bin\$filename" -C "build\picotool-install\$msysEnv" '*' }
 
 # Package dtc separately as well
 $versionOutput = & ".\build\dtc-install\$msysEnv\bin\dtc.exe" --version
