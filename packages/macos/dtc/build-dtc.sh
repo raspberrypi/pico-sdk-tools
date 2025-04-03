@@ -4,7 +4,7 @@ set -euo pipefail
 
 # Drop git repo of dtc as we use brew to build
 rm -rf dtc
-mkidr -p dtc-install
+mkdir -p dtc-install
 cd dtc-install
 
 arch -x86_64 /usr/local/bin/brew install --build-from-source dtc
