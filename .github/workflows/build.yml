@@ -7,7 +7,7 @@ permissions:
 
 env:
   SKIP_RISCV: 1
-  SKIP_OPENOCD: 1
+  SKIP_OPENOCD: 0
 
 jobs:
   build_windows:

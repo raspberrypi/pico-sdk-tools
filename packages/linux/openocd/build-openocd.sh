@@ -6,11 +6,10 @@ export CFLAGS=-static
 export LDFLAGS=-static
 
 cd openocd
-sed -i -e 's/uint /unsigned int /g' ./src/flash/nor/rp2040.c
 ./bootstrap
 ./configure --disable-werror
 make clean
-make -j$(nproc)
+make
 INSTALLDIR="$PWD/../openocd-install/usr/local/bin"
 rm -rf "$PWD/../openocd-install"
 DESTDIR="$PWD/../openocd-install" make install

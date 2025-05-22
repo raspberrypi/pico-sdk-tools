@@ -7,8 +7,8 @@ SKIP_RISCV=${SKIP_RISCV-0}
 SKIP_OPENOCD=${SKIP_OPENOCD-0}
 
 # Install prerequisites
-arch -x86_64 /usr/local/bin/brew install jq libtool libusb automake hidapi --quiet
-arch -arm64 /opt/homebrew/bin/brew install jq libtool libusb automake hidapi --quiet
+arch -x86_64 /usr/local/bin/brew install jq libtool libusb automake hidapi jimtcl --quiet
+arch -arm64 /opt/homebrew/bin/brew install jq libtool libusb automake hidapi jimtcl --quiet
 # RISC-V prerequisites
 echo "Listing local"
 ls /usr/local/bin
@@ -42,14 +42,18 @@ do
 
     echo "${href} ${tree} ${filename} ${extension} ${repodir}"
     rm -rf "${repodir}"
-    git clone -b "${tree}" --depth=1 -c advice.detachedHead=false "${href}" "${repodir}" 
+    git clone -b "${tree}" --depth=1 -c advice.detachedHead=false "${href}" "${repodir}"
+    submodules=$(echo "$repo" | jq -r .submodules)
+    if [[ "$submodules" == "true" ]]; then
+        git -C "${repodir}" submodule update --init --depth=1
+    fi
 done < <(echo "$repos")
 
 
 cd $builddir
 if [[ "$SKIP_OPENOCD" != 1 ]] && [[ $(uname -m) == 'arm64' ]]; then
     if ! ../packages/macos/openocd/build-openocd.sh; then
-        echo "OpenOCD Build failed"
+        echo "::error title=openocd-fail-macos::OpenOCD Build Failed on macOS"
         SKIP_OPENOCD=1
     fi
 fi

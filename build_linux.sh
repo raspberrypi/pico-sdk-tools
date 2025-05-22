@@ -7,7 +7,7 @@ SKIP_RISCV=${SKIP_RISCV-0}
 SKIP_OPENOCD=${SKIP_OPENOCD-0}
 
 # Install prerequisites
-sudo apt install -y jq cmake libtool automake libusb-1.0-0-dev libhidapi-dev libftdi1-dev
+sudo apt install -y jq cmake libtool automake libusb-1.0-0-dev libhidapi-dev libftdi1-dev libjim-dev
 # RISC-V prerequisites
 sudo apt install -y autoconf automake autotools-dev curl python3 python3-pip libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev ninja-build git cmake libglib2.0-dev libslirp-dev
 # RPi Only prerequisites
@@ -35,14 +35,18 @@ do
 
     echo "${href} ${tree} ${filename} ${extension} ${repodir}"
     rm -rf "${repodir}"
-    git clone -b "${tree}" --depth=1 -c advice.detachedHead=false "${href}" "${repodir}" 
+    git clone -b "${tree}" --depth=1 -c advice.detachedHead=false "${href}" "${repodir}"
+    submodules=$(echo "$repo" | jq -r .submodules)
+    if [[ "$submodules" == "true" ]]; then
+        git -C "${repodir}" submodule update --init --depth=1
+    fi
 done < <(echo "$repos")
 
 
 cd $builddir
 if [[ "$SKIP_OPENOCD" != 1 ]]; then
     if ! ../packages/linux/openocd/build-openocd.sh; then
-        echo "OpenOCD Build failed"
+        echo "::error title=openocd-fail-${suffix}::OpenOCD Build Failed on Linux $(uname -m)"
         SKIP_OPENOCD=1
     fi
 fi
