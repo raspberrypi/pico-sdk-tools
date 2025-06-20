@@ -101,7 +101,8 @@ fi
 
 if [[ "$SKIP_RISCV" != 1 ]]; then
     # Package riscv toolchain separately as well
-    version="14"
+    version=$("./$builddir/riscv-install/bin/riscv32-unknown-elf-gcc" -dumpversion)
+    version=$(echo $version | cut -d "." -f 1)
     echo "RISC-V Toolchain version $version"
 
     filename="riscv-toolchain-${version}-${suffix}.tar.gz"
