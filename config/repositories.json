@@ -14,11 +14,7 @@
     },
     {
       "href": "https://github.com/riscv/riscv-gnu-toolchain.git",
-      "tree": "master"
-    },
-    {
-      "href": "https://github.com/gcc-mirror/gcc",
-      "tree": "releases/gcc-14"
+      "tree": "2025.06.13"
     }
   ]
 }
