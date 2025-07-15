@@ -11,7 +11,7 @@ if [ ${version:0:1} -ge 2 ]; then
     rm -rf build
     mkdir -p build
     cd build
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DPIOASM_FLAT_INSTALL=1 -Wno-dev
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DPIOASM_FLAT_INSTALL=1 -DPIOASM_VERSION_STRING=$version -Wno-dev
     cmake --build .
 
     cd ../../../..

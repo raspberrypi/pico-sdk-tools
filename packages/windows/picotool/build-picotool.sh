@@ -21,7 +21,7 @@ if [ ${sdkVersion:0:1} -ge 2 ]; then
     cd pico-sdk/tools/pioasm
     mkdir -p build
     cd build
-    cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release -DPIOASM_FLAT_INSTALL=1 -Wno-dev
+    cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release -DPIOASM_FLAT_INSTALL=1 -DPIOASM_VERSION_STRING=$sdkVersion -Wno-dev
     cmake --build .
 
     cd ../../../..
