@@ -49,8 +49,8 @@ jobs:
             bin/openocd-*-x64-win.zip
             bin/riscv-toolchain-*-x64-win.zip
 
-  build_macos:
-    name: Build MacOS
+  build_macos_arm64:
+    name: Build MacOS Arm64
     # runs-on: [self-hosted, macOS]
     runs-on: 'macos-latest'
 
@@ -75,7 +75,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tools-mac
+          name: tools-mac-arm64
           path: |
             bin/picotool-*-mac.zip
             bin/pico-sdk-tools-*-mac.zip
@@ -88,6 +88,37 @@ jobs:
           files: |
             bin/picotool-*-mac.zip
             bin/pico-sdk-tools-*-mac.zip
+            bin/openocd-*-mac.zip
+            bin/riscv-toolchain-*.zip
+  
+  build_macos_x64:
+    name: Build MacOS x64
+    runs-on: 'macos-13'
+    env:
+      # Universal picotool is built on arm64
+      SKIP_PICOTOOL: 1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Homebrew
+        if: runner.environment == 'github-hosted'
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+      - name: Build
+        run: ./build_macos.sh
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tools-mac-x64
+          path: |
+            bin/openocd-*-mac.zip
+            bin/riscv-toolchain-*.zip
+      - name: Add Release Asset
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
             bin/openocd-*-mac.zip
             bin/riscv-toolchain-*.zip
 

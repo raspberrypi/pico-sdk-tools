@@ -10,9 +10,9 @@ cd openocd
 ./configure --disable-werror
 make clean
 make
-INSTALLDIR="$PWD/../openocd-install/usr/local/bin"
-rm -rf "$PWD/../openocd-install"
-DESTDIR="$PWD/../openocd-install" make install
+INSTALLDIR="$PWD/../openocd-install-$(uname -m)/usr/local/bin"
+rm -rf "$PWD/../openocd-install-$(uname -m)"
+DESTDIR="$PWD/../openocd-install-$(uname -m)" make install
 
 libusbpath=($(otool -L $INSTALLDIR/openocd | grep libusb))
 echo ${libusbpath[0]}
