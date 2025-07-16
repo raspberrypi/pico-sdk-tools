@@ -10,7 +10,7 @@
     },
     {
       "href": "https://github.com/raspberrypi/openocd.git",
-      "tree": "rpi-common",
+      "tree": "sdk-2.2.0",
       "submodules": true
     },
     {
