@@ -9,10 +9,6 @@ sdkVersion=$1
 export PICO_SDK_PATH="$PWD/pico-sdk"
 export LDFLAGS="-static -static-libgcc -static-libstdc++"
 
-# Apply https://github.com/raspberrypi/pico-sdk/commit/66540fe88e86a9f324422b7451a3b5dff4c0449f for gcc 15
-git -C "$PICO_SDK_PATH" fetch origin 66540fe88e86a9f324422b7451a3b5dff4c0449f
-git -C "$PICO_SDK_PATH" cherry-pick -n 66540fe88e86a9f324422b7451a3b5dff4c0449f
-
 git -C "$PICO_SDK_PATH" submodule update --init --depth=1 lib/mbedtls
 
 echo "Version is $sdkVersion"
@@ -57,14 +53,6 @@ else
 fi
 
 cd picotool
-
-# Apply https://github.com/raspberrypi/picotool/commit/f010190c37061f9a207075c6918a5e6e9aee5653 for CMake 4.x
-git fetch origin f010190c37061f9a207075c6918a5e6e9aee5653
-git cherry-pick -n f010190c37061f9a207075c6918a5e6e9aee5653
-
-# Apply https://github.com/raspberrypi/picotool/commit/ac8aaeac7e7c2dfb55a277c5aa4ff6537612789d for GCC 15
-git fetch origin ac8aaeac7e7c2dfb55a277c5aa4ff6537612789d
-git cherry-pick -n ac8aaeac7e7c2dfb55a277c5aa4ff6537612789d
 
 mkdir -p build
 cd build
