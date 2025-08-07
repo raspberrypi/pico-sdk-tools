@@ -1,5 +1,5 @@
 {
-  "msysEnv": "MINGW64",
+  "msysEnv": "UCRT64",
   "downloads": [
     {
       "name": "CMake",
