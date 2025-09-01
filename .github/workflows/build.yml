@@ -52,7 +52,7 @@ jobs:
   build_macos_arm64:
     name: Build MacOS Arm64
     # runs-on: [self-hosted, macOS]
-    runs-on: 'macos-latest'
+    runs-on: 'macos-14'
 
     steps:
       - name: Checkout
@@ -160,3 +160,4 @@ jobs:
             bin/pico-sdk-tools-*-lin.tar.gz
             bin/openocd-*-lin.tar.gz
             bin/riscv-toolchain-*-lin.tar.gz
+
