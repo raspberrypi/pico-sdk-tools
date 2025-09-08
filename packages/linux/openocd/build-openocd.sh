@@ -16,6 +16,8 @@ DESTDIR="$PWD/../openocd-install" make install
 
 # Add libraries that may be different versions on the system
 cd $INSTALLDIR
-cp $(ldd openocd | egrep -o "(/.*/libgpiod\.so\.\S*)") ./
+if [[ $(uname -m) == 'aarch64' ]]; then
+    cp $(ldd openocd | egrep -o "(/.*/libgpiod\.so\.\S*)") ./
+fi
 cp $(ldd openocd | egrep -o "(/.*/libjim\.so\.\S*)") ./
 patchelf --set-rpath . openocd
