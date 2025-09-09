@@ -20,4 +20,4 @@ if [[ $(uname -m) == 'aarch64' ]]; then
     cp $(ldd openocd | egrep -o "(/.*/libgpiod\.so\.\S*)") ./
 fi
 cp $(ldd openocd | egrep -o "(/.*/libjim\.so\.\S*)") ./
-patchelf --set-rpath . openocd
+patchelf --set-rpath '$ORIGIN' openocd
