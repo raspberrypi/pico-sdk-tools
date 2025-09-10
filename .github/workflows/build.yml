@@ -121,6 +121,37 @@ jobs:
           files: |
             bin/openocd-*-mac.zip
             bin/riscv-toolchain-*.zip
+  
+  build_macos_x64_on_arm64:
+    name: Build MacOS x64 on arm64
+    runs-on: 'macos-14'
+    env:
+      # Universal picotool is built on arm64
+      SKIP_PICOTOOL: 1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up x86_64 Homebrew
+        if: runner.environment == 'github-hosted'
+        run: |
+          NONINTERACTIVE=1 arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      - name: Build
+        run: arch -x86_64 ./build_macos.sh
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tools-mac-x64-on-arm64
+          path: |
+            bin/openocd-*-mac.zip
+            bin/riscv-toolchain-*.zip
+      - name: Add Release Asset
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            bin/openocd-*-mac.zip
+            bin/riscv-toolchain-*.zip
 
   build_linux:
     name: Build Linux
