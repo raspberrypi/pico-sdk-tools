@@ -62,11 +62,18 @@ if [[ "$SKIP_OPENOCD" != 1 ]]; then
         SKIP_OPENOCD=1
     fi
     echo "OpenOCD Build Complete"
+    if [[ "$SKIP_OPENOCD" != 1 ]]; then
+        ../packages/macos/get-dylibs.sh "openocd-install-$(uname -m)"
+        echo "OpenOCD dylibs copied"
+    fi
 fi
 if [[ "$SKIP_RISCV" != 1 ]]; then
     # Takes ages to build
     ../packages/macos/riscv/build-riscv-gcc.sh
     echo "RISC-V Build Complete"
+
+    ../packages/macos/get-dylibs.sh "riscv-install-$(uname -m)"
+    echo "RISC-V dylibs copied"
 fi
 if [[ "$SKIP_PICOTOOL" != 1 ]]; then
     arch -x86_64 ../packages/macos/picotool/build-picotool.sh
@@ -74,6 +81,12 @@ if [[ "$SKIP_PICOTOOL" != 1 ]]; then
         arch -arm64 ../packages/macos/picotool/build-picotool.sh
     fi
     echo "Picotool Build Complete"
+
+    ../packages/macos/get-dylibs.sh "picotool-install-x86_64"
+    if [[ $(uname -m) == 'arm64' ]]; then
+        ../packages/macos/get-dylibs.sh "picotool-install-arm64"
+    fi
+    echo "Picotool dylibs copied"
 
     ../packages/macos/make-universal.sh "pico-sdk-tools" "pioasm" "pioasm"
     echo "Pioasm Universal Merge Complete"
