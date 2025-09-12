@@ -132,6 +132,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Uninstall arm64 Homebrew
+        if: runner.environment == 'github-hosted'
+        run: |
+          NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+          rm -rf /opt/homebrew || true
       - name: Set up x86_64 Homebrew
         if: runner.environment == 'github-hosted'
         run: |
@@ -191,4 +196,5 @@ jobs:
             bin/pico-sdk-tools-*-lin.tar.gz
             bin/openocd-*-lin.tar.gz
             bin/riscv-toolchain-*-lin.tar.gz
+
 
