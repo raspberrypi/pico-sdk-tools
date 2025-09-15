@@ -141,6 +141,10 @@ jobs:
         if: runner.environment == 'github-hosted'
         run: |
           NONINTERACTIVE=1 arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      - name: Install x86_64 pkg-config
+        if: runner.environment == 'github-hosted'
+        run: |
+          arch -x86_64 /usr/local/bin/brew install pkg-config
       - name: Build
         run: arch -x86_64 ./build_macos.sh
       - name: Upload Artifact
