@@ -8,3 +8,14 @@ The tools currently included are:
 * **OpenOCD** (includes `linuxgpiod` and `cmsis-dap` adapters)
 * **pioasm**
 * **RISC-V Toolchain**
+
+## Installation 
+
+### Install to /usr/local/bin
+
+```bash
+sudo cp -r build/picotool-install/picotool/* /usr/local/bin/
+sudo cp -r build/pico-sdk-tools/pioasm/* /usr/local/bin/
+sudo cp -r build/openocd-install/usr/local/bin/* /usr/local/bin/
+sudo cp -r build/openocd-install/usr/local/share/openocd /usr/local/share/
+```
