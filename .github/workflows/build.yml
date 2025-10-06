@@ -177,7 +177,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos_latest, windows_latest, [self-hosted, linux, arm64, bookworm_desktop], [self-hosted, linux, arm64, trixie_desktop]]
+        os: [macos-latest, windows-latest, [self-hosted, linux, arm64, bookworm_desktop], [self-hosted, linux, arm64, trixie_desktop]]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Download build (Windows)
