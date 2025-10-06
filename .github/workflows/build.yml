@@ -33,7 +33,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tools-x64-win
+          name: tools-win-${{ runner.arch }}
           path: |
             bin/picotool-*-x64-win.zip
             bin/pico-sdk-tools-*-x64-win.zip
@@ -75,7 +75,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tools-mac-arm64
+          name: tools-mac-${{ runner.arch }}
           path: |
             bin/picotool-*-mac.zip
             bin/pico-sdk-tools-*-mac.zip
@@ -110,7 +110,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tools-mac-x64
+          name: tools-mac-${{ runner.arch }}
           path: |
             bin/openocd-*-mac.zip
             bin/riscv-toolchain-*.zip
@@ -169,7 +169,7 @@ jobs:
     #     os: [[self-hosted, linux, x64], [self-hosted, linux, arm64]]
     strategy:
       matrix:
-        os: [ubuntu-22.04, [self-hosted, linux, arm64]]
+        os: [ubuntu-22.04, [self-hosted, linux, arm64, bookworm, 8G]]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -201,4 +201,59 @@ jobs:
             bin/openocd-*-lin.tar.gz
             bin/riscv-toolchain-*-lin.tar.gz
 
+  test_binaries:
+    name: Test Binaries
+    needs: [build_linux, build_macos_arm64, build_windows]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos_latest, windows_latest, [self-hosted, linux, arm64, bookworm_desktop], [self-hosted, linux, arm64, trixie_desktop]]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Download build (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        uses: actions/download-artifact@v5
+        with:
+          name: tools-x64-win
+      - name: Download build (MacOS Arm64)
+        if: ${{ runner.os == 'macOS' }}
+        uses: actions/download-artifact@v5
+        with:
+          name: tools-mac-arm64
+      - name: Download build (Linux)
+        if: ${{ runner.os == 'Linux' }}
+        uses: actions/download-artifact@v5
+        with:
+          name: tools-lin-${{ runner.arch }}
 
+      - name: Extract build (zip)
+        if: ${{ runner.os == 'Windows' }} || ${{ runner.os == 'macOS' }}
+        shell: bash # Windows only has unzip in bash shell
+        run: |
+          unzip openocd*.zip
+          ls
+          unzip pico-sdk-tools*.zip
+          ls
+          unzip picotool*.zip
+          ls
+          unzip riscv-toolchain*.zip
+          ls
+      - name: Extract build (tar.gz)
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          tar -xvf openocd*.tar.gz
+          ls
+          tar -xvf pico-sdk-tools*.tar.gz
+          ls
+          tar -xvf picotool*.tar.gz
+          ls
+          tar -xvf riscv-toolchain*.tar.gz
+          ls
+
+      - name: Test everything runs
+        run: |
+          ./picotool/picotool version
+          ./pioasm/pioasm --version
+          ./openocd --version
+          ./bin/riscv32-unknown-elf-gcc --version
+          ./bin/riscv32-unknown-elf-gdb --version
