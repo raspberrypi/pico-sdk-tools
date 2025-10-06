@@ -116,7 +116,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tools-mac-${{ runner.arch }}
+          name: tools-mac-X64
           path: |
             bin/picotool-*-mac.zip
             bin/pico-sdk-tools-*-mac.zip
@@ -184,12 +184,12 @@ jobs:
         if: ${{ runner.os == 'Windows' }}
         uses: actions/download-artifact@v5
         with:
-          name: tools-x64-win
+          name: tools-win-${{ runner.arch }}
       - name: Download build (MacOS Arm64)
         if: ${{ runner.os == 'macOS' }}
         uses: actions/download-artifact@v5
         with:
-          name: tools-mac-arm64
+          name: tools-mac-${{ runner.arch }}
       - name: Download build (Linux)
         if: ${{ runner.os == 'Linux' }}
         uses: actions/download-artifact@v5
@@ -197,7 +197,7 @@ jobs:
           name: tools-lin-${{ runner.arch }}
 
       - name: Extract build (zip)
-        if: ${{ runner.os == 'Windows' }} || ${{ runner.os == 'macOS' }}
+        if: ${{ runner.os == 'Windows' || runner.os == 'macOS' }}
         shell: bash # Windows only has unzip in bash shell
         run: |
           unzip pico-sdk-tools*.zip
