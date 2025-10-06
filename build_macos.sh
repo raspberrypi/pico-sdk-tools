@@ -10,9 +10,10 @@ SKIP_PICOTOOL=${SKIP_PICOTOOL-0}
 echo "Running on $(uname -m)"
 
 # Install prerequisites
-arch -x86_64 /usr/local/bin/brew install jq libtool libusb automake hidapi --quiet
 if [[ $(uname -m) == 'arm64' ]]; then
-    arch -arm64 /opt/homebrew/bin/brew install jq libtool libusb automake hidapi --quiet
+    arch -arm64 /opt/homebrew/bin/brew  install jq libtool libusb automake hidapi --quiet
+else
+    arch -x86_64 /usr/local/bin/brew    install jq libtool libusb automake hidapi --quiet
 fi
 # RISC-V prerequisites
 echo "Listing local"
@@ -21,9 +22,10 @@ rm /usr/local/bin/2to3* || true
 rm /usr/local/bin/idle3* || true
 rm /usr/local/bin/pip* || true
 rm /usr/local/bin/py* || true
-arch -x86_64 /usr/local/bin/brew install python3 gawk gnu-sed make gmp mpfr libmpc isl zlib expat texinfo flock libslirp --quiet
 if [[ $(uname -m) == 'arm64' ]]; then
-    arch -arm64 /opt/homebrew/bin/brew install python3 gawk gnu-sed make gmp mpfr libmpc isl zlib expat texinfo flock libslirp --quiet
+    arch -arm64 /opt/homebrew/bin/brew  install python3 gawk gnu-sed make gmp mpfr libmpc isl zlib expat texinfo flock libslirp --quiet
+else
+    arch -x86_64 /usr/local/bin/brew    install python3 gawk gnu-sed make gmp mpfr libmpc isl zlib expat texinfo flock libslirp --quiet
 fi
 
 repos=$(cat config/repositories.json | jq -c '.repositories.[]')
@@ -78,22 +80,11 @@ if [[ "$SKIP_RISCV" != 1 ]]; then
     echo "RISC-V dylibs copied"
 fi
 if [[ "$SKIP_PICOTOOL" != 1 ]]; then
-    arch -x86_64 ../packages/macos/picotool/build-picotool.sh
-    if [[ $(uname -m) == 'arm64' ]]; then
-        arch -arm64 ../packages/macos/picotool/build-picotool.sh
-    fi
+    ../packages/macos/picotool/build-picotool.sh
     echo "Picotool Build Complete"
 
-    ../packages/macos/get-dylibs.sh "picotool-install-x86_64"
-    if [[ $(uname -m) == 'arm64' ]]; then
-        ../packages/macos/get-dylibs.sh "picotool-install-arm64"
-    fi
+    ../packages/macos/get-dylibs.sh "picotool-install-$(uname -m)"
     echo "Picotool dylibs copied"
-
-    ../packages/macos/make-universal.sh "pico-sdk-tools" "pioasm" "pioasm"
-    echo "Pioasm Universal Merge Complete"
-    ../packages/macos/make-universal.sh "picotool-install" "picotool" "picotool"
-    echo "Picotool Universal Merge Complete"
 fi
 cd ..
 
@@ -107,19 +98,19 @@ if [[ "$SKIP_PICOTOOL" != 1 ]]; then
         filename="pico-sdk-tools-${version}-${suffix}.zip"
 
         echo "Saving pico-sdk-tools package to $filename"
-        pushd "$builddir/pico-sdk-tools/"
+        pushd "$builddir/pico-sdk-tools-$(uname -m)/"
         tar -a -cf "$topd/bin/$filename" * .keep
         popd
     fi
 
     # Package picotool separately as well
-    version=$("./$builddir/picotool-install/picotool/picotool" version -s)
+    version=$("./$builddir/picotool-install-$(uname -m)/picotool/picotool" version -s)
     echo "Picotool version $version"
 
     filename="picotool-${version}-${suffix}.zip"
 
     echo "Saving picotool package to $filename"
-    pushd "$builddir/picotool-install/"
+    pushd "$builddir/picotool-install-$(uname -m)/"
     tar -a -cf "$topd/bin/$filename" * .keep
     popd
 fi
