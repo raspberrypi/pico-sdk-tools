@@ -4,7 +4,10 @@ INSTALLDIR=$1
 
 while true; do
     EXES=$(find $INSTALLDIR -type f -perm -u+x)
+    EXES="$EXES $(find $INSTALLDIR -type f -name "*.dylib")"
+    echo "EXES: $EXES"
     LIBS=$(otool -L $EXES | grep -E "/opt/homebrew|/usr/local/opt" | grep -v python | sort | uniq | grep -o -E "/.*\.dylib")
+    echo "LIBS: $LIBS"
 
     if [ ! $LIBS ]; then
         echo "All libraries done"

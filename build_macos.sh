@@ -7,6 +7,8 @@ SKIP_RISCV=${SKIP_RISCV-0}
 SKIP_OPENOCD=${SKIP_OPENOCD-0}
 SKIP_PICOTOOL=${SKIP_PICOTOOL-0}
 
+echo "Running on $(uname -m)"
+
 # Install prerequisites
 arch -x86_64 /usr/local/bin/brew install jq libtool libusb automake hidapi jimtcl --quiet
 if [[ $(uname -m) == 'arm64' ]]; then
