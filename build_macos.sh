@@ -10,9 +10,9 @@ SKIP_PICOTOOL=${SKIP_PICOTOOL-0}
 echo "Running on $(uname -m)"
 
 # Install prerequisites
-arch -x86_64 /usr/local/bin/brew install jq libtool libusb automake hidapi jimtcl --quiet
+arch -x86_64 /usr/local/bin/brew install jq libtool libusb automake hidapi --quiet
 if [[ $(uname -m) == 'arm64' ]]; then
-    arch -arm64 /opt/homebrew/bin/brew install jq libtool libusb automake hidapi jimtcl --quiet
+    arch -arm64 /opt/homebrew/bin/brew install jq libtool libusb automake hidapi --quiet
 fi
 # RISC-V prerequisites
 echo "Listing local"
