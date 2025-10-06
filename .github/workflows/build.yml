@@ -200,13 +200,13 @@ jobs:
         if: ${{ runner.os == 'Windows' || runner.os == 'macOS' }}
         shell: bash # Windows only has unzip in bash shell
         run: |
-          unzip pico-sdk-tools*.zip
+          unzip -o pico-sdk-tools*.zip
           ls
-          unzip picotool*.zip
+          unzip -o picotool*.zip
           ls
-          unzip openocd*.zip || true
+          unzip -o openocd*.zip || true
           ls
-          unzip riscv-toolchain*.zip || true
+          unzip -o riscv-toolchain*.zip || true
           ls
       - name: Extract build (tar.gz)
         if: ${{ runner.os == 'Linux' }}
