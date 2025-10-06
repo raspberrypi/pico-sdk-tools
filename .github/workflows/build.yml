@@ -230,30 +230,36 @@ jobs:
         if: ${{ runner.os == 'Windows' }} || ${{ runner.os == 'macOS' }}
         shell: bash # Windows only has unzip in bash shell
         run: |
-          unzip openocd*.zip
-          ls
           unzip pico-sdk-tools*.zip
           ls
           unzip picotool*.zip
           ls
-          unzip riscv-toolchain*.zip
+          unzip openocd*.zip || true
+          ls
+          unzip riscv-toolchain*.zip || true
           ls
       - name: Extract build (tar.gz)
         if: ${{ runner.os == 'Linux' }}
         run: |
-          tar -xvf openocd*.tar.gz
-          ls
           tar -xvf pico-sdk-tools*.tar.gz
           ls
           tar -xvf picotool*.tar.gz
           ls
-          tar -xvf riscv-toolchain*.tar.gz
+          tar -xvf openocd*.tar.gz || true
+          ls
+          tar -xvf riscv-toolchain*.tar.gz || true
           ls
 
-      - name: Test everything runs
+      - name: Test default stuff runs
         run: |
           ./picotool/picotool version
           ./pioasm/pioasm --version
+      - name: Test openocd runs
+        if: ${{ env.SKIP_OPENOCD != 1 }}
+        run: |
           ./openocd --version
+      - name: Test riscv-toolchain runs
+        if: ${{ env.SKIP_RISCV != 1 }}
+        run: |
           ./bin/riscv32-unknown-elf-gcc --version
           ./bin/riscv32-unknown-elf-gdb --version
