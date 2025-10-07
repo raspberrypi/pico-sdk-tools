@@ -12,7 +12,7 @@ touch $INSTALLDIR/.keep
 
 EXES=$(find $INSTALLDIR -type f -perm -u+x)
 LIBS=$(find $INSTALLDIR -type f -name "*.dylib")
-FILES="$EXES $LIBS"
+FILES="$EXES"$'\n'"$LIBS"
 echo "Files: $FILES"
 while IFS= read -r file; do
     file_arm64=$(sed "s|$INSTALLDIR|$INSTALLDIR-arm64|" <<< $file)
