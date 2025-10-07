@@ -49,55 +49,20 @@ jobs:
             bin/openocd-*-x64-win.zip
             bin/riscv-toolchain-*-x64-win.zip
 
-  build_macos_arm64:
-    name: Build MacOS Arm64
+  build_macos:
+    name: Build MacOS
     # runs-on: [self-hosted, macOS]
     runs-on: 'macos-14'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up Homebrew
+      - name: Set up arm64 Homebrew
         if: runner.environment == 'github-hosted'
         id: set-up-homebrew
         uses: Homebrew/actions/setup-homebrew@master
-      - name: Set up x86_64 Homebrew
-        if: runner.environment == 'github-hosted'
-        run: |
-          NONINTERACTIVE=1 arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-      # - name: Setup SSH Auth
-      #   if: runner.environment == 'github-hosted'
-      #   uses: webfactory/ssh-agent@v0.9.0
-      #   with:
-      #     ssh-private-key: ${{ secrets.SSH_KEY }}
       - name: Build
         run: ./build_macos.sh
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tools-mac-${{ runner.arch }}
-          path: |
-            bin/picotool-*-mac.zip
-            bin/pico-sdk-tools-*-mac.zip
-            bin/openocd-*-mac.zip
-            bin/riscv-toolchain-*.zip
-      - name: Add Release Asset
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            bin/picotool-*-mac.zip
-            bin/pico-sdk-tools-*-mac.zip
-            bin/openocd-*-mac.zip
-            bin/riscv-toolchain-*.zip
-
-  build_macos_x64:
-    name: Build MacOS x64 on arm64
-    runs-on: 'macos-14'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
       - name: Uninstall arm64 Homebrew
         if: runner.environment == 'github-hosted'
         run: |
@@ -113,15 +78,17 @@ jobs:
           arch -x86_64 /usr/local/bin/brew install pkg-config cmake
       - name: Build
         run: arch -x86_64 ./build_macos.sh
+      - name: Merge Universal Binaries
+        run: ./merge_macos.sh
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tools-mac-X64
+          name: tools-mac-universal
           path: |
             bin/picotool-*-mac.zip
             bin/pico-sdk-tools-*-mac.zip
             bin/openocd-*-mac.zip
-            bin/riscv-toolchain-*.zip
+            bin/riscv-toolchain-*-mac.zip
       - name: Add Release Asset
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -130,7 +97,7 @@ jobs:
             bin/picotool-*-mac.zip
             bin/pico-sdk-tools-*-mac.zip
             bin/openocd-*-mac.zip
-            bin/riscv-toolchain-*.zip
+            bin/riscv-toolchain-*-mac.zip
 
   build_linux:
     name: Build Linux
