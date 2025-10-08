@@ -177,7 +177,7 @@ jobs:
         run: |
           NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
       - name: Install prerequisites (Ubuntu)
-        if: runner.os == 'Linux' && runner.arch == 'X64'
+        if: runner.os == 'Linux' && runner.environment == 'github-hosted'
         run: sudo apt install libftdi1-2 libhidapi-hidraw0
 
       - name: Test default stuff runs
@@ -193,3 +193,4 @@ jobs:
         run: |
           ./bin/riscv32-unknown-elf-gcc --version
           ./bin/riscv32-unknown-elf-gdb --version
+
