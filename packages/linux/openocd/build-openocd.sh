@@ -7,7 +7,7 @@ export LDFLAGS=-static
 
 cd openocd
 ./bootstrap
-./configure --disable-werror
+./configure --disable-werror --enable-internal-jimtcl
 make clean
 make
 INSTALLDIR="$PWD/../openocd-install/usr/local/bin"
@@ -19,5 +19,4 @@ cd $INSTALLDIR
 if [[ $(uname -m) == 'aarch64' ]]; then
     cp $(ldd openocd | egrep -o "(/.*/libgpiod\.so\.\S*)") ./
 fi
-cp $(ldd openocd | egrep -o "(/.*/libjim\.so\.\S*)") ./
 patchelf --set-rpath '$ORIGIN' openocd

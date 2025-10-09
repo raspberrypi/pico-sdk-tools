@@ -12,17 +12,11 @@ env:
 jobs:
   build_windows:
     name: Build Windows
-    # runs-on: [self-hosted, Windows, x64]
     runs-on: 'windows-latest'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      # - name: Setup SSH Auth
-      #   if: runner.environment == 'github-hosted'
-      #   uses: webfactory/ssh-agent@v0.7.0
-      #   with:
-      #     ssh-private-key: ${{ secrets.SSH_KEY }}
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
       - name: Build
@@ -33,7 +27,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tools-x64-win
+          name: tools-win-${{ runner.arch }}
           path: |
             bin/picotool-*-x64-win.zip
             bin/pico-sdk-tools-*-x64-win.zip
@@ -49,38 +43,41 @@ jobs:
             bin/openocd-*-x64-win.zip
             bin/riscv-toolchain-*-x64-win.zip
 
-  build_macos_arm64:
-    name: Build MacOS Arm64
-    # runs-on: [self-hosted, macOS]
+  build_macos:
+    name: Build MacOS
     runs-on: 'macos-14'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up Homebrew
-        if: runner.environment == 'github-hosted'
+      - name: Set up arm64 Homebrew
         id: set-up-homebrew
         uses: Homebrew/actions/setup-homebrew@master
+      - name: Build arm64
+        run: ./build_macos.sh
+      - name: Uninstall arm64 Homebrew
+        run: |
+          NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+          rm -rf /opt/homebrew || true
       - name: Set up x86_64 Homebrew
-        if: runner.environment == 'github-hosted'
         run: |
           NONINTERACTIVE=1 arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-      # - name: Setup SSH Auth
-      #   if: runner.environment == 'github-hosted'
-      #   uses: webfactory/ssh-agent@v0.9.0
-      #   with:
-      #     ssh-private-key: ${{ secrets.SSH_KEY }}
-      - name: Build
-        run: ./build_macos.sh
+      - name: Install x86_64 pkg-config & cmake
+        run: |
+          arch -x86_64 /usr/local/bin/brew install pkg-config cmake
+      - name: Build x86_64
+        run: arch -x86_64 ./build_macos.sh
+      - name: Merge Universal Binaries
+        run: ./merge_macos.sh
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tools-mac-arm64
+          name: tools-mac-universal
           path: |
             bin/picotool-*-mac.zip
             bin/pico-sdk-tools-*-mac.zip
             bin/openocd-*-mac.zip
-            bin/riscv-toolchain-*.zip
+            bin/riscv-toolchain-*-mac.zip
       - name: Add Release Asset
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -89,57 +86,19 @@ jobs:
             bin/picotool-*-mac.zip
             bin/pico-sdk-tools-*-mac.zip
             bin/openocd-*-mac.zip
-            bin/riscv-toolchain-*.zip
-  
-  build_macos_x64:
-    name: Build MacOS x64
-    runs-on: 'macos-13'
-    env:
-      # Universal picotool is built on arm64
-      SKIP_PICOTOOL: 1
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Set up Homebrew
-        if: runner.environment == 'github-hosted'
-        id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@master
-      - name: Build
-        run: ./build_macos.sh
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tools-mac-x64
-          path: |
-            bin/openocd-*-mac.zip
-            bin/riscv-toolchain-*.zip
-      - name: Add Release Asset
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            bin/openocd-*-mac.zip
-            bin/riscv-toolchain-*.zip
+            bin/riscv-toolchain-*-mac.zip
 
   build_linux:
     name: Build Linux
-    # strategy:
-    #   matrix:
-    #     os: [[self-hosted, linux, x64], [self-hosted, linux, arm64]]
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-22.04, [self-hosted, linux, arm64]]
+        os: [ubuntu-22.04, [self-hosted, linux, arm64, bookworm, 8G]]
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      # - name: Setup SSH Auth
-      #   if: runner.environment == 'github-hosted'
-      #   uses: webfactory/ssh-agent@v0.9.0
-      #   with:
-      #     ssh-private-key: ${{ secrets.SSH_KEY }}
       - name: Build
         run: ./build_linux.sh
       - name: Upload Artifact
@@ -160,4 +119,78 @@ jobs:
             bin/pico-sdk-tools-*-lin.tar.gz
             bin/openocd-*-lin.tar.gz
             bin/riscv-toolchain-*-lin.tar.gz
+
+  test_binaries:
+    name: Test Binaries
+    needs: [build_linux, build_macos, build_windows]
+    if: always() && contains(needs.*.result, 'success')
+    strategy:
+      fail-fast: false
+      matrix:
+        # Test all GitHub supported versions, except for windows-11-arm
+        os: [macos-15, macos-15-intel, macos-14, windows-2025, windows-2022, windows-11-arm, ubuntu-24.04, ubuntu-22.04, ubuntu-24.04-arm, ubuntu-22.04-arm, [self-hosted, linux, arm64, trixie_desktop], [self-hosted, linux, arm64, bookworm_desktop]]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Download build (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/download-artifact@v5
+        with:
+          # Only built for x64, but arm should still run it fine
+          name: tools-win-X64
+      - name: Download build (MacOS)
+        if: runner.os == 'macOS'
+        uses: actions/download-artifact@v5
+        with:
+          name: tools-mac-universal
+      - name: Download build (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/download-artifact@v5
+        with:
+          name: tools-lin-${{ runner.arch }}
+
+      - name: Extract build (zip)
+        if: runner.os == 'Windows' || runner.os == 'macOS'
+        shell: bash # Windows only has unzip in bash shell
+        run: |
+          unzip -o pico-sdk-tools*.zip
+          ls
+          unzip -o picotool*.zip
+          ls
+          unzip -o openocd*.zip || true
+          ls
+          unzip -o riscv-toolchain*.zip || true
+          ls
+      - name: Extract build (tar.gz)
+        if: runner.os == 'Linux'
+        run: |
+          tar -xvf pico-sdk-tools*.tar.gz
+          ls
+          tar -xvf picotool*.tar.gz
+          ls
+          tar -xvf openocd*.tar.gz || true
+          ls
+          tar -xvf riscv-toolchain*.tar.gz || true
+          ls
+
+      - name: Clean runner (MacOS)
+        if: runner.os == 'macOS'
+        run: |
+          NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+      - name: Install prerequisites (Ubuntu)
+        if: runner.os == 'Linux' && runner.environment == 'github-hosted'
+        run: sudo apt install libftdi1-2 libhidapi-hidraw0
+
+      - name: Test default stuff runs
+        run: |
+          ./picotool/picotool version
+          ./pioasm/pioasm --version
+      - name: Test openocd runs
+        if: env.SKIP_OPENOCD != 1
+        run: |
+          ./openocd --version
+      - name: Test riscv-toolchain runs
+        if: env.SKIP_RISCV != 1
+        run: |
+          ./bin/riscv32-unknown-elf-gcc --version
+          ./bin/riscv32-unknown-elf-gdb --version
 
