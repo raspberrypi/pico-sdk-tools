@@ -203,9 +203,10 @@ $env:MSYS = "winsymlinks:nativestrict"
 if (-not $SkipDownload) {
   # First run setup
   msys 'uname -a'
-  # Core update
-  msys 'pacman --noconfirm -Syuu'
-  # Normal update
+  # Don't sync the package database (-Sy) so pacman uses the local database
+  # from the pinned MSYS2 installer snapshot, which lists GCC 14. Running
+  # -Sy would pull the current database and upgrade to GCC 16+, which breaks
+  # the riscv-gnu-toolchain build (GCC 16 defaults to C++23, libcody fails).
   msys 'pacman --noconfirm -Suu'
 
   msys "pacman -S --noconfirm --needed autoconf automake base-devel expat git libtool pactoys patchutils pkg-config"

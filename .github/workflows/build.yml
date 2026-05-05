@@ -17,13 +17,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup MSYS2
-        uses: msys2/setup-msys2@v2
       - name: Build
         run: |
           subst P: .
           P:
-          ./build.ps1 ./config/x64-win.json -SkipSigning -MSYS2Path (msys2 -c 'cygpath -m /').TrimEnd('\/')
+          ./build.ps1 ./config/x64-win.json -SkipSigning
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
