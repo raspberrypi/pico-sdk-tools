@@ -4,8 +4,8 @@ set -euo pipefail
 
 BUILDDIR=$(pwd)
 INSTALLDIR="openocd-install"
-BINDIR="/openocd"
-DATADIR="/"
+BINDIR="/install/openocd"
+DATADIR="/install"
 
 cd openocd
 

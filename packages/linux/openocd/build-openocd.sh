@@ -7,8 +7,8 @@ export LDFLAGS=-static
 
 BUILDDIR=$(pwd)
 INSTALLDIR="openocd-install"
-BINDIR="/openocd"
-DATADIR="/"
+BINDIR="/install/openocd"
+DATADIR="/install"
 
 cd openocd
 ./bootstrap

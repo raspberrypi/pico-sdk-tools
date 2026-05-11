@@ -84,7 +84,7 @@ popd
 if [[ "$SKIP_OPENOCD" != 1 ]]; then
     # Package OpenOCD separately as well
 
-    version=($("./$builddir/openocd-install/openocd/openocd" --version 2>&1))
+    version=($("./$builddir/openocd-install/install/openocd/openocd" --version 2>&1))
     version=${version[0]}
     version=${version[3]}
     version=$(echo $version | cut -d "-" -f 1)
@@ -94,7 +94,7 @@ if [[ "$SKIP_OPENOCD" != 1 ]]; then
     filename="openocd-${version}-${suffix}.tar.gz"
 
     echo "Saving OpenOCD package to $filename"
-    pushd "$builddir/openocd-install/openocd"
+    pushd "$builddir/openocd-install/install/openocd"
     tar -a -cf "$topd/bin/$filename" *
     popd
 fi
