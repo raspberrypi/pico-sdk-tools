@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+export CXXFLAGS="-fno-char8_t"
+
 INSTALLDIR="riscv-install/${MSYSTEM,,}"
 rm -rf $INSTALLDIR
 mkdir -p $INSTALLDIR
