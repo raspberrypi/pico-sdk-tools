@@ -265,7 +265,7 @@ exec { tar -a -cf "bin\$filename" -C "build\picotool-install\$msysEnv" '*' }
 if ($env:SKIP_OPENOCD -ne '1') {
   # Package OpenOCD separately as well
 
-  $version = (cmd /c ".\build\openocd-install\$msysEnv\bin\openocd.exe" --version '2>&1')[0]
+  $version = (cmd /c ".\build\openocd-install\install\openocd\openocd.exe" --version '2>&1')[0]
   if (-not ($version -match 'Open On-Chip Debugger (?<version>[a-zA-Z0-9\.\-+]+) \((?<timestamp>[0-9\-:]+)\)')) {
     Write-Error 'Could not determine openocd version'
   }
@@ -276,10 +276,10 @@ if ($env:SKIP_OPENOCD -ne '1') {
 
   # Removing files with special char in their names
   # they cause issues with some decompression libraries
-  Remove-Item "build\openocd-install\$msysEnv\share\openocd\scripts\target\1986*.cfg"
+  Remove-Item "build\openocd-install\install\openocd\scripts\target\1986*.cfg"
 
   Write-Host "Saving OpenOCD package to $filename"
-  exec { tar -a -cf "bin\$filename" -C "build\openocd-install\$msysEnv\bin" '*' -C "..\share\openocd" "scripts" }
+  exec { tar -a -cf "bin\$filename" -C "build\openocd-install\install\openocd" '*' }
 }
 
 if ($env:SKIP_RISCV -ne '1') {
