@@ -41,16 +41,38 @@ function mkdirp {
     
 function exec {
     param ([scriptblock]$private:cmd)
-    
+
     $global:LASTEXITCODE = 0
-    
+
     & $cmd
-    
+
     if ($LASTEXITCODE -ne 0) {
         throw "Command '$cmd' exited with code $LASTEXITCODE"
     }
 }
-  
+
+# Retries a command a few times with a backoff, to ride out transient
+# network failures (e.g. flaky git clones/downloads of large upstream repos).
+function execRetry {
+    param ([scriptblock]$private:cmd, [int]$MaxAttempts = 3)
+
+    for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+        $global:LASTEXITCODE = 0
+
+        & $cmd
+
+        if ($LASTEXITCODE -eq 0) {
+            return
+        }
+
+        if ($attempt -eq $MaxAttempts) {
+            throw "Command '$cmd' exited with code $LASTEXITCODE after $MaxAttempts attempts"
+        }
+
+        Write-Warning "Command '$cmd' exited with code $LASTEXITCODE (attempt $attempt/$MaxAttempts), retrying..."
+        Start-Sleep -Seconds ($attempt * 5)
+    }
+}
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -88,7 +110,7 @@ mkdirp "bin"
   }
   else {
     Write-Host "Downloading $($_.name): " -NoNewline
-    exec { curl.exe --fail --silent --show-error --url "$($_.href)" --location --output "$outfile" --create-dirs --remote-time --time-cond "downloads/$($_.file)" }
+    execRetry { curl.exe --fail --silent --show-error --url "$($_.href)" --location --output "$outfile" --create-dirs --remote-time --time-cond "downloads/$($_.file)" }
   }
 
   # Display versions of packaged installers, for information only. We try to
@@ -147,14 +169,15 @@ $repositories | ForEach-Object {
     exec { git -C "$repodir" describe --all }
   }
   else {
-    if (Test-Path $repodir) {
-      Remove-Item $repodir -Recurse -Force
+    execRetry {
+      if (Test-Path $repodir) {
+        Remove-Item $repodir -Recurse -Force
+      }
+      git clone -b "$($_.tree)" --depth=1 -c advice.detachedHead=false "$($_.href)" "$repodir"
     }
 
-    exec { git clone -b "$($_.tree)" --depth=1 -c advice.detachedHead=false "$($_.href)" "$repodir" }
-
     if ($_ | Get-Member submodules) {
-      exec { git -C "$repodir" submodule update --init --depth=1 }
+      execRetry { git -C "$repodir" submodule update --init --depth=1 }
     }
   }
 }

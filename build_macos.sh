@@ -2,6 +2,44 @@
 
 set -euo pipefail
 
+# Retries a command a few times with a backoff, to ride out transient
+# network failures (e.g. flaky git clones of large upstream repos).
+retry() {
+    local -i attempt=1
+    local -i max_attempts=3
+    until "$@"; do
+        if (( attempt >= max_attempts )); then
+            echo "Command failed after ${attempt} attempts: $*" >&2
+            return 1
+        fi
+        echo "Command failed (attempt ${attempt}/${max_attempts}), retrying: $*" >&2
+        sleep $(( attempt * 5 ))
+        attempt+=1
+    done
+}
+
+# Like retry, but removes $1 before each attempt so a partial clone left
+# behind by a failed attempt doesn't block the next one.
+clone_with_retry() {
+    local dir="$1"
+    shift
+    local -i attempt=1
+    local -i max_attempts=3
+    while true; do
+        rm -rf "${dir}"
+        if "$@"; then
+            return 0
+        fi
+        if (( attempt >= max_attempts )); then
+            echo "Command failed after ${attempt} attempts: $*" >&2
+            return 1
+        fi
+        echo "Command failed (attempt ${attempt}/${max_attempts}), retrying: $*" >&2
+        sleep $(( attempt * 5 ))
+        attempt+=1
+    done
+}
+
 # Defaults
 SKIP_RISCV=${SKIP_RISCV-0}
 SKIP_OPENOCD=${SKIP_OPENOCD-0}
@@ -50,11 +88,10 @@ do
     repodir="$builddir/${filename}"
 
     echo "${href} ${tree} ${filename} ${extension} ${repodir}"
-    rm -rf "${repodir}"
-    git clone -b "${tree}" --depth=1 -c advice.detachedHead=false "${href}" "${repodir}"
+    clone_with_retry "${repodir}" git clone -b "${tree}" --depth=1 -c advice.detachedHead=false "${href}" "${repodir}"
     submodules=$(echo "$repo" | jq -r .submodules)
     if [[ "$submodules" == "true" ]]; then
-        git -C "${repodir}" submodule update --init --depth=1
+        retry git -C "${repodir}" submodule update --init --depth=1
     fi
 done < <(echo "$repos")
 

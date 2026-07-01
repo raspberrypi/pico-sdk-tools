@@ -123,7 +123,6 @@ jobs:
   test_binaries:
     name: Test Binaries
     needs: [build_linux, build_macos, build_windows]
-    if: always() && contains(needs.*.result, 'success')
     strategy:
       fail-fast: false
       matrix:
@@ -194,3 +193,19 @@ jobs:
           ./bin/riscv32-unknown-elf-gcc --version
           ./bin/riscv32-unknown-elf-gdb --version
 
+  # Build jobs occasionally fail due to transient network issues (e.g. flaky
+  # git clones of large upstream repos such as riscv-gnu-toolchain).
+  # Automatically rerun just the failed build jobs, up to a small number of
+  # attempts, rather than requiring a manual re-run.
+  retry_on_failure:
+    name: Retry failed jobs
+    needs: [build_windows, build_macos, build_linux]
+    if: failure() && fromJSON(github.run_attempt) < 3
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Rerun failed jobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run rerun ${{ github.run_id }} --failed
