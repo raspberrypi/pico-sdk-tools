@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
       - name: Build
@@ -25,7 +25,7 @@ jobs:
           P:
           ./build.ps1 ./config/x64-win.json -SkipSigning -MSYS2Path (msys2 -c 'cygpath -m /').TrimEnd('\/')
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tools-win-${{ runner.arch }}
           path: |
@@ -49,10 +49,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set up arm64 Homebrew
         id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@main
       - name: Build arm64
         run: ./build_macos.sh
       - name: Uninstall arm64 Homebrew
@@ -70,7 +70,7 @@ jobs:
       - name: Merge Universal Binaries
         run: ./merge_macos.sh
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tools-mac-universal
           path: |
@@ -98,11 +98,11 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Build
         run: ./build_linux.sh
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tools-lin-${{ runner.arch }}
           path: |
@@ -133,18 +133,18 @@ jobs:
     steps:
       - name: Download build (Windows)
         if: runner.os == 'Windows'
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           # Only built for x64, but arm should still run it fine
           name: tools-win-X64
       - name: Download build (MacOS)
         if: runner.os == 'macOS'
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: tools-mac-universal
       - name: Download build (Linux)
         if: runner.os == 'Linux'
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: tools-lin-${{ runner.arch }}
 
