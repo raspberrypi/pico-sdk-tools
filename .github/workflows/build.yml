@@ -191,6 +191,19 @@ jobs:
       - name: Test riscv-toolchain runs
         if: env.SKIP_RISCV != 1
         run: |
-          ./bin/riscv32-unknown-elf-gcc --version
+          ./bin/riscv32-pico-elf-gcc --version
           ./bin/riscv32-unknown-elf-gdb --version
+      - name: Checkout Pico SDK
+        uses: actions/checkout@v4
+        with:
+          repository: raspberrypi/pico-sdk
+          ref: develop
+          path: pico-sdk
+          submodules: false
+      - name: Test Risc-V kitchen_sink build
+        if: env.SKIP_RISCV != 1
+        run: |
+          cmake -S pico-sdk -B build-pico-sdk -DPICO_TOOLCHAIN_PATH=${GITHUB_WORKSPACE} -Dpicotool_DIR=${GITHUB_WORKSPACE}/picotool -Dpioasm_DIR=${GITHUB_WORKSPACE}/pioasm -GNinja
+          cmake --build build-pico-sdk --target kitchen_sink
+          cat ./build-pico-sdk/CMakeCache.txt
 

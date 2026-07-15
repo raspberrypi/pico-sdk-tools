@@ -1,0 +1,51 @@
+From: Richard Oliver <richard.oliver@raspberrypi.com>
+Date: Fri, 24 Apr 2026 13:21:25 +0100
+Subject: [PATCH] RISC-V: Add -mcpu=hazard3-rp2350 and -mcpu=hazard3-sim
+
+Add two -mcpu values targeting the Hazard3 core:
+
+  hazard3-rp2350  the Hazard3 core configuration shipped in the
+                  Raspberry Pi RP2350 silicon (Zba/Zbb/Zbs/Zbkb +
+                  Zca/Zcb/Zcmp).
+
+  hazard3-sim     everything Hazard3 currently implements that GCC
+                  understands -- adds Zilsd/Zclsd, Zbkx and Zibi on
+                  top of the RP2350-shipping set.  Intended for use
+                  with the Hazard3 simulator; will trap on RP2350
+                  silicon, which lacks all four of those extensions.
+
+Both share a new "hazard3" tune entry, currently aliased to
+rocket_tune_info (in-order single-issue) as a placeholder; a more
+accurate Hazard3 scheduling model can replace it without changing the
+cores.
+
+gcc/ChangeLog:
+
+	* config/riscv/riscv-cores.def: Add hazard3 tune; add
+	hazard3-rp2350 and hazard3-sim cores.
+---
+ gcc/config/riscv/riscv-cores.def | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+--- a/gcc/config/riscv/riscv-cores.def
++++ b/gcc/config/riscv/riscv-cores.def
+@@ -57,6 +57,7 @@
+ RISCV_TUNE("andes-25-series", andes_25_series, andes_25_tune_info)
+ RISCV_TUNE("andes-23-series", andes_23_series, andes_23_tune_info)
+ RISCV_TUNE("andes-45-series", andes_45_series, andes_45_tune_info)
++RISCV_TUNE("hazard3", generic, rocket_tune_info)
+ 
+ #undef RISCV_TUNE
+ 
+@@ -196,4 +197,11 @@
+ 			      "zbkc_zfh_zvfh_zvkt_zvl256b_sscofpmf_xsmtvdot",
+ 			      "spacemit-x60")
+ 
++RISCV_CORE("hazard3-rp2350",  "rv32ima_zicsr_zifencei_zba_zbb_zbs_zbkb_"
++			      "zca_zcb_zcmp",
++			      "hazard3")
++RISCV_CORE("hazard3-sim",     "rv32ima_zicsr_zifencei_zilsd_zba_zbb_zbs_zbkb_"
++			      "zbkx_zca_zcb_zclsd_zcmp_zibi",
++			      "hazard3")
++
+ #undef RISCV_CORE

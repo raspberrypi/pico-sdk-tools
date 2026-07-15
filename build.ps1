@@ -214,6 +214,7 @@ if (-not $SkipDownload) {
 }
 
 if (-not (Test-Path ".\build\riscv-install\$msysEnv") -and ($env:SKIP_RISCV -ne '1')) {
+  msys "cd build && ../packages/common/riscv/apply-patches.sh"
   msys "cd build && ../packages/windows/riscv/build-riscv-gcc.sh"
 }
 
@@ -285,7 +286,7 @@ if ($env:SKIP_OPENOCD -ne '1') {
 if ($env:SKIP_RISCV -ne '1') {
   # Package Risc-V separately as well
 
-  $version = ((. ".\build\riscv-install\$msysEnv\bin\riscv32-unknown-elf-gcc.exe" -dumpversion) -split '\.')[0]
+  $version = ((. ".\build\riscv-install\$msysEnv\bin\riscv32-pico-elf-gcc.exe" -dumpversion) -split '\.')[0]
 
   $filename = 'riscv-toolchain-{0}-{1}.zip' -f
     $version,

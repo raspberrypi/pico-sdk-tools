@@ -52,6 +52,7 @@ if [[ "$SKIP_OPENOCD" != 1 ]]; then
 fi
 if [[ "$SKIP_RISCV" != 1 ]]; then
     # Takes ages to build
+    ../packages/common/riscv/apply-patches.sh
     ../packages/linux/riscv/build-riscv-gcc.sh
 fi
 ../packages/linux/picotool/build-picotool.sh
@@ -101,7 +102,7 @@ fi
 
 if [[ "$SKIP_RISCV" != 1 ]]; then
     # Package riscv toolchain separately as well
-    version=$("./$builddir/riscv-install/bin/riscv32-unknown-elf-gcc" -dumpversion)
+    version=$("./$builddir/riscv-install/bin/riscv32-pico-elf-gcc" -dumpversion)
     version=$(echo $version | cut -d "." -f 1)
     echo "RISC-V Toolchain version $version"
 
