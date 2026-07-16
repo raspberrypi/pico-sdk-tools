@@ -18,7 +18,7 @@ cd riscv-gnu-toolchain
     --with-multilib-generator="\
         rv32ima_zicsr_zifencei_zba_zbb_zbs_zbkb_zca_zcb_zcmp-ilp32--;\
         rv32imac_zicsr_zifencei_zba_zbb_zbs_zbkb-ilp32--;\
-        rv32ima_zicsr_zifencei_zilsd_zba_zbb_zbs_zbkb_zbkx_zca_zcb_zclsd_zcmp_zibi-ilp32--"
+        rv32ima_zicsr_zifencei_zilsd_zba_zbb_zbs_zbkb_zbkx_zca_zcb_zclsd_zcmp_zibi-ilp32---hazard3_sim"
 make -j$(nproc)
 
 cd "$BUILDDIR/$INSTALLDIR"

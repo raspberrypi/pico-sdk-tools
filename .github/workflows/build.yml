@@ -93,7 +93,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, [self-hosted, linux, arm64, bookworm, 8G]]
+        os: [ubuntu-22.04, [self-hosted, linux, arm64, bookworm, 16G]]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -194,16 +194,18 @@ jobs:
           ./bin/riscv32-pico-elf-gcc --version
           ./bin/riscv32-pico-elf-gdb --version
       - name: Checkout Pico SDK
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: raspberrypi/pico-sdk
           ref: develop
           path: pico-sdk
-          submodules: false
+          submodules: true
       - name: Test Risc-V kitchen_sink build
         if: env.SKIP_RISCV != 1
+        shell: bash # Windows only has grep in bash shell
         run: |
-          cmake -S pico-sdk -B build-pico-sdk -DPICO_TOOLCHAIN_PATH=${GITHUB_WORKSPACE} -Dpicotool_DIR=${GITHUB_WORKSPACE}/picotool -Dpioasm_DIR=${GITHUB_WORKSPACE}/pioasm -GNinja
+          cmake -S pico-sdk -B build-pico-sdk -DPICO_TOOLCHAIN_PATH=${GITHUB_WORKSPACE} -Dpicotool_DIR=${GITHUB_WORKSPACE}/picotool -Dpioasm_DIR=${GITHUB_WORKSPACE}/pioasm -DPICO_PLATFORM=rp2350-riscv -GNinja
           cmake --build build-pico-sdk --target kitchen_sink
           cat ./build-pico-sdk/CMakeCache.txt
+          cat ./build-pico-sdk/CMakeCache.txt | grep hazard3-rp2350
 
