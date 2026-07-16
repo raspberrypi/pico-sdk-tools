@@ -192,7 +192,7 @@ jobs:
         if: env.SKIP_RISCV != 1
         run: |
           ./bin/riscv32-pico-elf-gcc --version
-          ./bin/riscv32-unknown-elf-gdb --version
+          ./bin/riscv32-pico-elf-gdb --version
       - name: Checkout Pico SDK
         uses: actions/checkout@v4
         with:

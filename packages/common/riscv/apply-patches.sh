@@ -13,6 +13,11 @@ for dir in "${PATCHESDIR}"/*/; do
     echo "Checking out ${component}"
     git submodule update --init --progress --depth 1 ${component}
 
+    # git am requires user name and email
+    echo "Setting Git user for ${component}"
+    git -C "${component}" config user.name 'github-actions[bot]'
+    git -C "${component}" config user.email 'github-actions[bot]@users.noreply.github.com'
+
     for patch in "${dir}"*.patch; do
         [[ -e "${patch}" ]] || continue
         echo "Applying ${patch} to ${component}"
