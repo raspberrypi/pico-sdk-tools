@@ -43,9 +43,17 @@ jobs:
             bin/openocd-*-x64-win.zip
             bin/riscv-toolchain-*-x64-win.zip
 
-  build_macos_arm64:
-    name: Build MacOS (arm64)
-    runs-on: 'macos-15'
+  build_macos_arch:
+    name: Build MacOS (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            arch: arm64
+          - os: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout
@@ -57,52 +65,27 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: build-mac-arm64
+          name: build-mac-${{ matrix.arch }}
           path: |
-            build/openocd-install-arm64
-            build/riscv-install-arm64
-            build/picotool-install-arm64
-            build/pico-sdk-tools-arm64
-
-  build_macos_x86_64:
-    name: Build MacOS (x86_64)
-    runs-on: 'macos-15-intel'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@main
-      - name: Build
-        run: ./build_macos.sh
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: build-mac-x86_64
-          path: |
-            build/openocd-install-x86_64
-            build/riscv-install-x86_64
-            build/picotool-install-x86_64
-            build/pico-sdk-tools-x86_64
+            build/openocd-install-${{ matrix.arch }}
+            build/riscv-install-${{ matrix.arch }}
+            build/picotool-install-${{ matrix.arch }}
+            build/pico-sdk-tools-${{ matrix.arch }}
 
   build_macos:
     name: Build MacOS (merge)
-    needs: [build_macos_arm64, build_macos_x86_64]
+    needs: build_macos_arch
     runs-on: 'macos-15'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-      - name: Download arm64 build
+      - name: Download builds
         uses: actions/download-artifact@v7
         with:
-          name: build-mac-arm64
+          pattern: build-mac-*
           path: build
-      - name: Download x86_64 build
-        uses: actions/download-artifact@v7
-        with:
-          name: build-mac-x86_64
-          path: build
+          merge-multiple: true
       - name: Merge Universal Binaries
         run: ./merge_macos.sh
       - name: Upload Artifact
