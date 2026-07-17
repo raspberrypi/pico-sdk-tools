@@ -43,30 +43,66 @@ jobs:
             bin/openocd-*-x64-win.zip
             bin/riscv-toolchain-*-x64-win.zip
 
-  build_macos:
-    name: Build MacOS
-    runs-on: 'macos-14'
+  build_macos_arm64:
+    name: Build MacOS (arm64)
+    runs-on: 'macos-15'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-      - name: Set up arm64 Homebrew
-        id: set-up-homebrew
+      - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@main
-      - name: Build arm64
+      - name: Build
         run: ./build_macos.sh
-      - name: Uninstall arm64 Homebrew
-        run: |
-          NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
-          rm -rf /opt/homebrew || true
-      - name: Set up x86_64 Homebrew
-        run: |
-          NONINTERACTIVE=1 arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-      - name: Install x86_64 pkg-config & cmake
-        run: |
-          arch -x86_64 /usr/local/bin/brew install pkg-config cmake
-      - name: Build x86_64
-        run: arch -x86_64 ./build_macos.sh
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-mac-arm64
+          path: |
+            build/openocd-install-arm64
+            build/riscv-install-arm64
+            build/picotool-install-arm64
+            build/pico-sdk-tools-arm64
+
+  build_macos_x86_64:
+    name: Build MacOS (x86_64)
+    runs-on: 'macos-15-intel'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+      - name: Build
+        run: ./build_macos.sh
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-mac-x86_64
+          path: |
+            build/openocd-install-x86_64
+            build/riscv-install-x86_64
+            build/picotool-install-x86_64
+            build/pico-sdk-tools-x86_64
+
+  build_macos:
+    name: Build MacOS (merge)
+    needs: [build_macos_arm64, build_macos_x86_64]
+    runs-on: 'macos-15'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Download arm64 build
+        uses: actions/download-artifact@v7
+        with:
+          name: build-mac-arm64
+          path: build
+      - name: Download x86_64 build
+        uses: actions/download-artifact@v7
+        with:
+          name: build-mac-x86_64
+          path: build
       - name: Merge Universal Binaries
         run: ./merge_macos.sh
       - name: Upload Artifact

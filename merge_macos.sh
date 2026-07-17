@@ -13,6 +13,8 @@ export version=$(cat ./version.txt)
 suffix="mac"
 builddir="build"
 
+mkdir -p "bin"
+
 cd $builddir
 if [[ "$SKIP_OPENOCD" != 1 ]]; then
     ../packages/macos/make-universal.sh "openocd-install"
