@@ -14,6 +14,8 @@ if [[ $(uname -m) == 'arm64' ]]; then
 fi
 
 export NEWLIB_TUPLE=riscv32-pico-elf
+export CC=gcc-15
+export CXX=g++-15
 
 cd riscv-gnu-toolchain
 ./configure --prefix=$BUILDDIR/$INSTALLDIR --enable-strip --disable-linux \
