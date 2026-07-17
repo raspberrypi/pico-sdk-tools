@@ -9,9 +9,13 @@ mkdir -p $INSTALLDIR
 BUILDDIR=$(pwd)
 
 if [[ $(uname -m) == 'arm64' ]]; then
-    GDB_TARGET_FLAGS_EXTRA="--with-gmp=/opt/homebrew --with-mpfr=/opt/homebrew"
-    export GDB_TARGET_FLAGS_EXTRA
+    BREW_PREFIX=/opt/homebrew
+else
+    BREW_PREFIX=/usr/local
 fi
+
+GDB_TARGET_FLAGS_EXTRA="--with-gmp=$BREW_PREFIX --with-mpfr=$BREW_PREFIX --with-libmpc=$BREW_PREFIX"
+export GDB_TARGET_FLAGS_EXTRA
 
 export NEWLIB_TUPLE=riscv32-pico-elf
 export CC=gcc-15
