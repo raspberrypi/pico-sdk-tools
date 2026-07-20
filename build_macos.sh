@@ -7,6 +7,8 @@ SKIP_RISCV=${SKIP_RISCV-0}
 SKIP_OPENOCD=${SKIP_OPENOCD-0}
 SKIP_PICOTOOL=${SKIP_PICOTOOL-0}
 
+export MACOSX_DEPLOYMENT_TARGET=14.0
+
 echo "Running on $(uname -m)"
 
 # Install prerequisites
