@@ -11,11 +11,11 @@ cp -r $INSTALLDIR-arm64/* $INSTALLDIR
 touch $INSTALLDIR/.keep
 
 EXES_arm=$(find $INSTALLDIR-arm64 -type f -perm -u+x)
-LIBS_arm=$(find $INSTALLDIR-arm64 -type f -name "*.dylib")
+LIBS_arm=$(find $INSTALLDIR-arm64 -type f \( -name "*.dylib" -o -name "*.so" \))
 FILES_arm=$(echo "$EXES_arm"$'\n'"$LIBS_arm" | sed "s|$INSTALLDIR-arm64|$INSTALLDIR|g")
 
 EXES_x64=$(find $INSTALLDIR-x86_64 -type f -perm -u+x)
-LIBS_x64=$(find $INSTALLDIR-x86_64 -type f -name "*.dylib")
+LIBS_x64=$(find $INSTALLDIR-x86_64 -type f \( -name "*.dylib" -o -name "*.so" \))
 FILES_x64=$(echo "$EXES_x64"$'\n'"$LIBS_x64" | sed "s|$INSTALLDIR-x86_64|$INSTALLDIR|g")
 
 FILES=$(echo "$FILES_arm"$'\n'"$FILES_x64" | sort | uniq)
@@ -26,11 +26,10 @@ while IFS= read -r file; do
     file_x86_64=$(sed "s|$INSTALLDIR|$INSTALLDIR-x86_64|" <<< $file)
     if [ -f $file_x86_64 ]; then
         if [ -f $file_arm64 ]; then
-            if file $file | grep "Mach-O 64-bit executable" > /dev/null; then
-                echo "Processing executable: $file $file_x86_64 $file_arm64"
-                lipo -create -output $file $file_x86_64 $file_arm64
-            elif file $file | grep "Mach-O 64-bit dynamically linked shared library" > /dev/null; then
-                echo "Processing dynamic library: $file $file_x86_64 $file_arm64"
+            # Match any Mach-O 64-bit file (executable, dylib, or loadable bundle/plugin
+            # such as liblto_plugin.so) - lipo doesn't care about the subtype.
+            if file $file | grep "Mach-O 64-bit" > /dev/null; then
+                echo "Processing Mach-O file: $file $file_x86_64 $file_arm64"
                 lipo -create -output $file $file_x86_64 $file_arm64
             fi
         else

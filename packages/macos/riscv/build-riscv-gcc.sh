@@ -18,8 +18,6 @@ GDB_TARGET_FLAGS_EXTRA="--with-gmp=$BREW_PREFIX --with-mpfr=$BREW_PREFIX --with-
 export GDB_TARGET_FLAGS_EXTRA
 
 export NEWLIB_TUPLE=riscv32-pico-elf
-export CC=gcc-15
-export CXX=g++-15
 
 cd riscv-gnu-toolchain
 ./configure --prefix=$BUILDDIR/$INSTALLDIR --enable-strip --disable-linux \

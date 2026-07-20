@@ -23,9 +23,9 @@ rm /usr/local/bin/idle3* || true
 rm /usr/local/bin/pip* || true
 rm /usr/local/bin/py* || true
 if [[ $(uname -m) == 'arm64' ]]; then
-    arch -arm64 /opt/homebrew/bin/brew  install python3 gcc@15 gawk gnu-sed make gmp mpfr libmpc isl zlib expat texinfo flock libslirp --quiet
+    arch -arm64 /opt/homebrew/bin/brew  install python3 gawk gnu-sed make gmp mpfr libmpc isl zlib expat texinfo flock libslirp --quiet
 else
-    arch -x86_64 /usr/local/bin/brew    install python3 gcc@15 gawk gnu-sed make gmp mpfr libmpc isl zlib expat texinfo flock libslirp --quiet
+    arch -x86_64 /usr/local/bin/brew    install python3 gawk gnu-sed make gmp mpfr libmpc isl zlib expat texinfo flock libslirp --quiet
 fi
 
 repos=$(cat config/repositories.json | jq -c '.repositories.[]')
