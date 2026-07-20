@@ -4,6 +4,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 env:
   SKIP_RISCV: 0
@@ -62,15 +63,23 @@ jobs:
         uses: Homebrew/actions/setup-homebrew@main
       - name: Build
         run: ./build_macos.sh
+      - name: Package build output
+        # actions/upload-artifact does not preserve unix file permissions when
+        # uploading a directory tree, which loses the executable bit on the
+        # binaries to be merged (https://github.com/actions/upload-artifact/issues/38).
+        # Tar them first so the merge job has the correct permissions.
+        run: |
+          cd build
+          dirs=()
+          for d in openocd-install-${{ matrix.arch }} riscv-install-${{ matrix.arch }} picotool-install-${{ matrix.arch }} pico-sdk-tools-${{ matrix.arch }}; do
+            [ -d "$d" ] && dirs+=("$d")
+          done
+          tar -cf ../build-mac-${{ matrix.arch }}.tar "${dirs[@]}"
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
         with:
           name: build-mac-${{ matrix.arch }}
-          path: |
-            build/openocd-install-${{ matrix.arch }}
-            build/riscv-install-${{ matrix.arch }}
-            build/picotool-install-${{ matrix.arch }}
-            build/pico-sdk-tools-${{ matrix.arch }}
+          path: build-mac-${{ matrix.arch }}.tar
 
   build_macos:
     name: Build MacOS (merge)
@@ -84,8 +93,21 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           pattern: build-mac-*
-          path: build
+          path: downloads
           merge-multiple: true
+      - name: Extract build output
+        run: |
+          mkdir -p build
+          for f in downloads/*.tar; do
+            tar -xf "$f" -C build
+          done
+      - name: Delete arch artifacts
+        # No longer needed once extracted; only the merged universal binary is kept.
+        uses: geekyeggo/delete-artifact@v6
+        with:
+          name: build-mac-*
+          useGlob: true
+          failOnError: false
       - name: Merge Universal Binaries
         run: ./merge_macos.sh
       - name: Upload Artifact
