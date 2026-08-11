@@ -250,3 +250,39 @@ jobs:
         run: |
           ./bin/riscv32-pico-elf-gcc --version
           ./bin/riscv32-pico-elf-gdb --version
+      # Hazard3 traps on misaligned accesses, so newlib must keep the alignment
+      # checks in its string functions. A newlib configured for "hardware can do
+      # misaligned access" compiles them out and hangs on RP2350 at the first
+      # unaligned strncmp/strcmp/memcmp. See raspberrypi/pico-sdk#3118.
+      - name: Test riscv-toolchain libc is safe on Hazard3
+        if: env.SKIP_RISCV != 1
+        shell: bash
+        run: |
+          root=$PWD
+          fail=0
+
+          # The root cause: a configure-time decision baked into newlib.h.
+          while IFS= read -r h; do
+            if grep -q "define _HAVE_HW_MISALIGNED_ACCESS" "$h"; then
+              echo "::error::$h defines _HAVE_HW_MISALIGNED_ACCESS; newlib will omit its alignment checks"
+              fail=1
+            fi
+          done < <(find riscv32-pico-elf/include -name newlib.h)
+
+          # And the resulting artefact: strncmp must still test its pointers
+          # before entering the word-at-a-time loop. Tied to current codegen, so
+          # if this trips spuriously check the disassembly before relaxing it.
+          tmp=$(mktemp -d)
+          while IFS= read -r libc; do
+            rm -f "$tmp/libc_a-strncmp.o"
+            ( cd "$tmp" && "$root/bin/riscv32-pico-elf-ar" x "$root/$libc" libc_a-strncmp.o )
+            if ! "$root/bin/riscv32-pico-elf-objdump" -d "$tmp/libc_a-strncmp.o" |
+                 sed -n '1,16p' | grep -qE 'andi[[:space:]]+[a-z0-9]+,[a-z0-9]+,3'; then
+              echo "::error::$libc: strncmp has no alignment check"
+              "$root/bin/riscv32-pico-elf-objdump" -d "$tmp/libc_a-strncmp.o" | sed -n '1,16p'
+              fail=1
+            fi
+          done < <(find riscv32-pico-elf/lib -name libc.a)
+
+          exit $fail
+
