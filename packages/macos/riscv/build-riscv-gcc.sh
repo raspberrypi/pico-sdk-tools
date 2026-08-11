@@ -8,6 +8,14 @@ mkdir -p $INSTALLDIR
 
 BUILDDIR=$(pwd)
 
+# Hazard3 traps on misaligned accesses, but GCC reports __riscv_misaligned_slow
+# ("works, just slowly") for our -march, and newlib 4.6.0 reads that as "hardware
+# can do it" and compiles the alignment checks out of its string functions. The
+# result hangs on RP2350 -- see raspberrypi/pico-sdk#3118. Upstream newlib fixed
+# this in d110c88b4, but riscv-gnu-toolchain still pins newlib-4.6.0, so tell
+# newlib explicitly rather than letting it probe.
+export NEWLIB_TARGET_FLAGS_EXTRA="--disable-newlib-hw-misaligned-access"
+
 if [[ $(uname -m) == 'arm64' ]]; then
     GDB_TARGET_FLAGS_EXTRA="--with-gmp=/opt/homebrew --with-mpfr=/opt/homebrew"
     export GDB_TARGET_FLAGS_EXTRA
