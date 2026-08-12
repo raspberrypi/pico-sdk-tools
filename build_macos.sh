@@ -75,6 +75,8 @@ if [[ "$SKIP_OPENOCD" != 1 ]]; then
 fi
 if [[ "$SKIP_RISCV" != 1 ]]; then
     # Takes ages to build
+    # Workaround for sourceware.org sometimes not working
+    ../packages/common/riscv/download-submodules.sh
     ../packages/common/riscv/apply-patches.sh
     ../packages/macos/riscv/build-riscv-gcc.sh
     echo "RISC-V Build Complete"

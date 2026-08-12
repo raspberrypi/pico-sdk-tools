@@ -214,6 +214,8 @@ if (-not $SkipDownload) {
 }
 
 if (-not (Test-Path ".\build\riscv-install\$msysEnv") -and ($env:SKIP_RISCV -ne '1')) {
+  # Workaround for sourceware.org sometimes not working
+  msys "cd build && ../packages/common/riscv/download-submodules.sh"
   msys "cd build && ../packages/common/riscv/apply-patches.sh"
   msys "cd build && ../packages/windows/riscv/build-riscv-gcc.sh"
 }
