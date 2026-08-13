@@ -9,12 +9,26 @@ mkdir -p $INSTALLDIR
 BUILDDIR=$(pwd)
 
 # Hazard3 traps on misaligned accesses, but GCC reports __riscv_misaligned_slow
-# ("works, just slowly") for our -march, and newlib 4.6.0 reads that as "hardware
-# can do it" and compiles the alignment checks out of its string functions. The
-# result hangs on RP2350 -- see raspberrypi/pico-sdk#3118. Upstream newlib fixed
-# this in d110c88b4, but riscv-gnu-toolchain still pins newlib-4.6.0, so tell
-# newlib explicitly rather than letting it probe.
+# ("works, just slowly") for our -march, and newlib reads that as "the hardware
+# can do it" and drops the alignment checks from its string functions. The result
+# hangs on RP2350 -- see raspberrypi/pico-sdk#3118.
+#
+# newlib decides this in two independent places, so both need covering:
+#
+#   - the generic C routines (strncmp, memcmp, ...) test
+#     _HAVE_HW_MISALIGNED_ACCESS, which newlib's configure sets from a compiler
+#     probe. --disable-newlib-hw-misaligned-access answers it explicitly.
+#
+#   - the RISC-V specific routines (strcmp.S, rv_string.h, memcpy.c, memmove.c,
+#     setjmp.S) test __riscv_misaligned_slow/_fast directly and ignore the
+#     configure setting. Only -mstrict-align reaches those, by making GCC report
+#     __riscv_misaligned_avoid instead.
+#
+# -mstrict-align also makes the configure probe fail, so it covers both cases on
+# its own; the configure flag is kept so the generic routines stay guarded even
+# if the target flags are changed later.
 export NEWLIB_TARGET_FLAGS_EXTRA="--disable-newlib-hw-misaligned-access"
+export CFLAGS_FOR_TARGET_EXTRA="-mstrict-align"
 
 if [[ $(uname -m) == 'arm64' ]]; then
     GDB_TARGET_FLAGS_EXTRA="--with-gmp=/opt/homebrew --with-mpfr=/opt/homebrew"
