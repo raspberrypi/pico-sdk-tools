@@ -195,38 +195,64 @@ jobs:
           ./bin/riscv32-unknown-elf-gdb --version
 
       # Hazard3 traps on misaligned accesses, so newlib must keep the alignment
-      # checks in its string functions. A newlib configured for "hardware can do
-      # misaligned access" compiles them out and hangs on RP2350 at the first
-      # unaligned strncmp/strcmp/memcmp. See raspberrypi/pico-sdk#3118.
+      # checks in its string functions. A newlib that believes the hardware can
+      # do misaligned access compiles them out and hangs on RP2350 at the first
+      # unaligned strcmp/strncmp/strcpy. See raspberrypi/pico-sdk#3118.
       - name: Test riscv-toolchain libc is safe on Hazard3
         if: env.SKIP_RISCV != 1
         shell: bash
         run: |
+          set -u
           root=$PWD
           fail=0
+          checked=0
 
-          # The root cause: a configure-time decision baked into newlib.h.
+          # Derive the tuple rather than hardcoding it: it has changed once
+          # already (riscv32-unknown-elf -> riscv32-pico-elf), and hardcoding it
+          # makes this step find nothing and pass silently.
+          gcc=$(ls "$root"/bin/*-gcc "$root"/bin/*-gcc.exe 2>/dev/null | head -1)
+          if [ -z "$gcc" ]; then
+            echo "::error::no RISC-V gcc found under bin/"
+            exit 1
+          fi
+          tuple=$(basename "$gcc"); tuple=${tuple%-gcc}; tuple=${tuple%-gcc.exe}
+          echo "toolchain tuple: $tuple"
+
+          # newlib decides this in two independent places, so check both.
+
+          # 1. Generic C routines (strncmp, memcmp, ...) test
+          #    _HAVE_HW_MISALIGNED_ACCESS, set by newlib's configure.
           while IFS= read -r h; do
+            checked=$((checked+1))
             if grep -q "define _HAVE_HW_MISALIGNED_ACCESS" "$h"; then
-              echo "::error::$h defines _HAVE_HW_MISALIGNED_ACCESS; newlib will omit its alignment checks"
+              echo "::error::${h#$root/} defines _HAVE_HW_MISALIGNED_ACCESS"
               fail=1
             fi
-          done < <(find riscv32-unknown-elf/include -name newlib.h)
+          done < <(find "$tuple/include" -name newlib.h 2>/dev/null)
 
-          # And the resulting artefact: strncmp must still test its pointers
-          # before entering the word-at-a-time loop. Tied to current codegen, so
-          # if this trips spuriously check the disassembly before relaxing it.
-          tmp=$(mktemp -d)
+          # 2. RISC-V specific routines (strcmp.S, rv_string.h, memcpy.c, ...)
+          #    test __riscv_misaligned_slow/_fast directly and ignore the
+          #    configure setting; only -mstrict-align reaches them. strcmp is the
+          #    canary: they share flags, and .Lmisaligned is a stable label in the
+          #    hand-written assembly, so this does not depend on codegen details.
           while IFS= read -r libc; do
-            rm -f "$tmp/libc_a-strncmp.o"
-            ( cd "$tmp" && "$root/bin/riscv32-unknown-elf-ar" x "$root/$libc" libc_a-strncmp.o )
-            if ! "$root/bin/riscv32-unknown-elf-objdump" -d "$tmp/libc_a-strncmp.o" |
-                 sed -n '1,16p' | grep -qE 'andi[[:space:]]+[a-z0-9]+,[a-z0-9]+,3'; then
-              echo "::error::$libc: strncmp has no alignment check"
-              "$root/bin/riscv32-unknown-elf-objdump" -d "$tmp/libc_a-strncmp.o" | sed -n '1,16p'
+            d=$(mktemp -d)
+            ( cd "$d" && "$root/bin/$tuple-ar" x "$root/$libc" libc_a-strcmp.o 2>/dev/null )
+            [ -f "$d/libc_a-strcmp.o" ] || continue
+            checked=$((checked+1))
+            if ! "$root/bin/$tuple-objdump" -d "$d/libc_a-strcmp.o" |
+                 sed -n '1,14p' | grep -q "Lmisaligned"; then
+              echo "::error::$libc: strcmp has no alignment check"
+              "$root/bin/$tuple-objdump" -d "$d/libc_a-strcmp.o" | sed -n '1,14p'
               fail=1
             fi
-          done < <(find riscv32-unknown-elf/lib -name libc.a)
+          done < <(find "$tuple/lib" -name libc.a 2>/dev/null)
+
+          if [ "$checked" -eq 0 ]; then
+            echo "::error::checked nothing -- has the artefact layout changed?"
+            fail=1
+          fi
+          echo "checked $checked item(s)"
 
           exit $fail
 
