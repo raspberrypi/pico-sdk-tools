@@ -18,6 +18,7 @@ GDB_TARGET_FLAGS_EXTRA="--with-gmp=$BREW_PREFIX --with-mpfr=$BREW_PREFIX --with-
 export GDB_TARGET_FLAGS_EXTRA
 
 export NEWLIB_TUPLE=riscv32-pico-elf
+export NEWLIB_TARGET_FLAGS_EXTRA="--disable-newlib-hw-misaligned-access"
 export CFLAGS_FOR_TARGET_EXTRA="-mtune=hazard3"
 
 cd riscv-gnu-toolchain
