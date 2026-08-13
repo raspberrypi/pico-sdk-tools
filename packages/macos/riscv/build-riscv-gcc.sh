@@ -27,6 +27,12 @@ BUILDDIR=$(pwd)
 # -mstrict-align also makes the configure probe fail, so it covers both cases on
 # its own; the configure flag is kept so the generic routines stay guarded even
 # if the target flags are changed later.
+#
+# Both arrived in newlib 4.6.0, from commit dcf5d237f. Do not assume a newer
+# newlib makes these unnecessary: the upstream fix, d110c88b4, only relaxes the
+# configure probe. It leaves strcmp.S and friends testing the compiler macros
+# directly, so on a core GCC calls "slow" they stay unguarded no matter which
+# newlib is pinned. -mstrict-align is the permanent fix here, not a stopgap.
 export NEWLIB_TARGET_FLAGS_EXTRA="--disable-newlib-hw-misaligned-access"
 export CFLAGS_FOR_TARGET_EXTRA="-mstrict-align"
 
