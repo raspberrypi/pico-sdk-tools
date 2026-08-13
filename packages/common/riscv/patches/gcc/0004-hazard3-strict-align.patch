@@ -6,16 +6,13 @@ Hazard3 has no hardware support for misaligned loads and stores: every
 misaligned access traps.  Avoiding them is therefore a property of the
 core rather than a tuning preference, but at present it is only expressed
 as one -- the hazard3 tune entry is aliased to rocket_tune_info, whose
-slow_unaligned_access is true, so -mstrict-align merely defaults to on.
-That leaves two ways to get trapping code out of the compiler:
+slow_unaligned_access is true, so -mstrict-align merely defaults to on
+and -mno-strict-align is enough to get trapping code out of the
+compiler.
 
-  -mcpu=hazard3-rp2350 -mtune=<core with fast misaligned accesses>
-  -mcpu=hazard3-rp2350 -mno-strict-align
-
-Force strict alignment whenever a Hazard3 core is selected, by -mcpu or
-by -mtune, whatever -mtune asks for and even if -mno-strict-align was
-given explicitly; warn once in the latter case.  Non-Hazard3 targets are
-unaffected.
+Force strict alignment whenever the compiler is tuning for Hazard3, even
+if -mno-strict-align was given explicitly; warn once in that case.
+Targets that tune for something else are unaffected.
 
 Since misaligned accesses now trap rather than merely being slow, this
 also makes Hazard3 predefine __riscv_misaligned_avoid in place of
@@ -26,34 +23,24 @@ gcc/ChangeLog:
 
 	* config/riscv/riscv.cc (riscv_hazard3_target_p): New function.
 	(riscv_override_options_internal): Force strict alignment when
-	targeting a Hazard3 core.
+	tuning for a Hazard3 core.
 ---
- gcc/config/riscv/riscv.cc | 47 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 47 insertions(+)
+ gcc/config/riscv/riscv.cc | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)
 
 --- a/gcc/config/riscv/riscv.cc
 +++ b/gcc/config/riscv/riscv.cc
-@@ -1037,6 +1037,29 @@ riscv_parse_tune (const char *tune_string, bool null_p)
+@@ -1037,6 +1037,19 @@ riscv_parse_tune (const char *tune_string, bool null_p)
    return riscv_tune_info_table;
  }
 
-+/* Return true if OPTS targets a Hazard3 core.  Hazard3 has no hardware
++/* Return true if OPTS tunes for a Hazard3 core.  Hazard3 has no hardware
 +   support for misaligned loads and stores, so misaligned accesses must
 +   never be generated for it.  */
 +
 +static bool
 +riscv_hazard3_target_p (const struct gcc_options *opts)
 +{
-+  /* -mtune may name an unrelated core while -mcpu still selects Hazard3,
-+     so both have to be checked.  */
-+  if (opts->x_riscv_cpu_string)
-+    {
-+      const riscv_cpu_info *cpu = riscv_find_cpu (opts->x_riscv_cpu_string);
-+
-+      if (cpu && strcmp (cpu->tune, "hazard3") == 0)
-+	return true;
-+    }
-+
 +  const struct riscv_tune_info *tune
 +    = riscv_parse_tune (get_tune_str (opts), true);
 +
@@ -63,14 +50,14 @@ gcc/ChangeLog:
  /* Helper function for riscv_build_integer; arguments are as for
     riscv_build_integer.  */
 
-@@ -12325,6 +12348,30 @@ riscv_override_options_internal (struct gcc_options *opts)
+@@ -12325,6 +12338,30 @@ riscv_override_options_internal (struct gcc_options *opts)
        && cpu->tune_param->slow_unaligned_access)
      opts->x_target_flags |= MASK_STRICT_ALIGN;
 
 +  /* Hazard3 traps on every misaligned load and store, so avoiding them is a
 +     property of the core rather than a tuning preference.  Force strict
-+     alignment on whatever -mtune asks for, and even if -mno-strict-align was
-+     given explicitly.  */
++     alignment whenever we are tuning for Hazard3, even if -mno-strict-align
++     was given explicitly.  */
 +  if (riscv_hazard3_target_p (opts))
 +    {
 +      /* Warn once for the command line rather than again for every function

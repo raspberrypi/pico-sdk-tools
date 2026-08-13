@@ -18,6 +18,7 @@ GDB_TARGET_FLAGS_EXTRA="--with-gmp=$BREW_PREFIX --with-mpfr=$BREW_PREFIX --with-
 export GDB_TARGET_FLAGS_EXTRA
 
 export NEWLIB_TUPLE=riscv32-pico-elf
+export CFLAGS_FOR_TARGET_EXTRA="-mtune=hazard3"
 
 cd riscv-gnu-toolchain
 ./configure --prefix=$BUILDDIR/$INSTALLDIR --enable-strip --disable-linux \

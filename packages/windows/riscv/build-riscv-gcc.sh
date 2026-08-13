@@ -11,6 +11,7 @@ mkdir -p $INSTALLDIR
 BUILDDIR=$(pwd)
 
 export NEWLIB_TUPLE=riscv32-pico-elf
+export CFLAGS_FOR_TARGET_EXTRA="-mtune=hazard3"
 
 cd riscv-gnu-toolchain
 ./configure --prefix=$BUILDDIR/$INSTALLDIR --enable-strip --disable-linux \
