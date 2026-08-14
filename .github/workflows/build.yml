@@ -266,7 +266,13 @@ jobs:
           # Derive the tuple rather than hardcoding it: it has changed once
           # already (riscv32-unknown-elf -> riscv32-pico-elf), and hardcoding it
           # makes this step find nothing and pass silently.
-          gcc=$(ls "$root"/bin/*-gcc "$root"/bin/*-gcc.exe 2>/dev/null | head -1)
+          # Loop rather than ls: one of the two globs never matches (.exe only
+          # on Windows), so ls always exits 2 and, under the runner's
+          # `bash -e -o pipefail`, kills the step before it checks anything.
+          gcc=
+          for candidate in "$root"/bin/*-gcc "$root"/bin/*-gcc.exe; do
+            if [ -f "$candidate" ]; then gcc=$candidate; break; fi
+          done
           if [ -z "$gcc" ]; then
             echo "::error::no RISC-V gcc found under bin/"
             exit 1
@@ -293,13 +299,18 @@ jobs:
           #    hand-written assembly, so this does not depend on codegen details.
           while IFS= read -r libc; do
             d=$(mktemp -d)
-            ( cd "$d" && "$root/bin/$tuple-ar" x "$root/$libc" libc_a-strcmp.o 2>/dev/null )
+            # A libc.a without that member is not a failure, so do not let the
+            # runner's `bash -e` turn a missing one into a dead step.
+            ( cd "$d" && "$root/bin/$tuple-ar" x "$root/$libc" libc_a-strcmp.o 2>/dev/null ) || true
             [ -f "$d/libc_a-strcmp.o" ] || continue
             checked=$((checked+1))
-            if ! "$root/bin/$tuple-objdump" -d "$d/libc_a-strcmp.o" |
-                 sed -n '1,14p' | grep -q "Lmisaligned"; then
+            # Disassemble into a variable: piping straight into grep -q lets it
+            # exit first and SIGPIPE the writer, which pipefail then reports as
+            # a failed check.
+            dis=$("$root/bin/$tuple-objdump" -d "$d/libc_a-strcmp.o" | sed -n '1,14p')
+            if ! printf '%s\n' "$dis" | grep -q "Lmisaligned"; then
               echo "::error::$libc: strcmp has no alignment check"
-              "$root/bin/$tuple-objdump" -d "$d/libc_a-strcmp.o" | sed -n '1,14p'
+              printf '%s\n' "$dis"
               fail=1
             fi
           done < <(find "$tuple/lib" -name libc.a 2>/dev/null)
@@ -309,6 +320,101 @@ jobs:
             fail=1
           fi
           echo "checked $checked item(s)"
+
+          exit $fail
+
+      # The check above covers what newlib baked in at build time; this covers
+      # what the compiler does to the SDK's own code. Strict alignment is forced
+      # for a Hazard3 tune by a local patch (packages/common/riscv/patches/gcc/
+      # 0004-hazard3-strict-align.patch), which a toolchain bump can silently
+      # drop.
+      - name: Test riscv-toolchain codegen is safe on Hazard3
+        if: env.SKIP_RISCV != 1
+        shell: bash
+        run: |
+          set -u
+          root=$PWD
+          fail=0
+
+          gcc=
+          for candidate in "$root"/bin/*-gcc "$root"/bin/*-gcc.exe; do
+            if [ -f "$candidate" ]; then gcc=$candidate; break; fi
+          done
+          if [ -z "$gcc" ]; then
+            echo "::error::no RISC-V gcc found under bin/"
+            exit 1
+          fi
+
+          d=$(mktemp -d)
+          # Reading a packed field is the clearest way to ask for an access the
+          # compiler cannot assume is aligned: it has to be done byte-wise
+          # unless misaligned loads are allowed. A leaf function with no stack
+          # traffic keeps the test honest -- any lw/lh in its body is the
+          # misaligned access itself, not a spill reload.
+          cat > "$d/packed.c" <<'EOF'
+          struct s { char c; int v; } __attribute__((packed));
+          int packed_load (struct s *p) { return p->v; }
+          EOF
+
+          check_bytewise () {
+            desc=$1; shift
+            if ! "$gcc" "$@" -O2 -S -o "$d/out.s" "$d/packed.c" 2>"$d/err"; then
+              echo "::error::$desc: compile failed"
+              cat "$d/err"
+              fail=1
+              return
+            fi
+            body=$(awk '/^packed_load:/,/\.size[[:space:]]+packed_load/' "$d/out.s")
+            if printf '%s\n' "$body" | grep -qE '^[[:space:]]*(lw|lh|lhu)[[:space:]]'; then
+              echo "::error::$desc: packed_load reads the field with a misaligned word/halfword access"
+              printf '%s\n' "$body"
+              fail=1
+            elif ! printf '%s\n' "$body" | grep -qE '^[[:space:]]*lbu?[[:space:]]'; then
+              echo "::error::$desc: packed_load has no byte loads -- has this stopped testing anything?"
+              printf '%s\n' "$body"
+              fail=1
+            else
+              echo "ok: $desc"
+            fi
+          }
+
+          # The flag sets the SDK uses, in the order it prefers them
+          # (cmake/preload/toolchains/pico_riscv_gcc.cmake), then the two ways to
+          # ask for misaligned accesses anyway.
+          check_bytewise "-mcpu=hazard3-rp2350" \
+            -mcpu=hazard3-rp2350
+          check_bytewise "SDK fallback -march (zca_zcb_zcmp)" \
+            -march=rv32ima_zicsr_zifencei_zba_zbb_zbs_zbkb_zca_zcb_zcmp -mabi=ilp32
+          check_bytewise "SDK fallback -march (rv32imac)" \
+            -march=rv32imac_zicsr_zifencei_zba_zbb_zbs_zbkb -mabi=ilp32
+          check_bytewise "-mcpu=hazard3-rp2350 -mno-strict-align" \
+            -mcpu=hazard3-rp2350 -mno-strict-align
+          check_bytewise "-mtune=hazard3 -mno-strict-align" \
+            -march=rv32imac -mabi=ilp32 -mtune=hazard3 -mno-strict-align
+
+          # Overriding -mno-strict-align silently would be worse than honouring
+          # it, so the override has to say so.
+          out=$("$gcc" -mcpu=hazard3-rp2350 -mno-strict-align -O2 -S -o "$d/out.s" "$d/packed.c" 2>&1 || true)
+          case $out in
+            *"not supported when targeting Hazard3"*)
+              echo "ok: -mno-strict-align warns" ;;
+            *)
+              echo "::error::-mno-strict-align was overridden without a warning"
+              printf '%s\n' "$out"
+              fail=1 ;;
+          esac
+
+          # __riscv_misaligned_avoid is what portable source should see: on
+          # Hazard3 these accesses trap, they are not merely slow.
+          macros=$(echo | "$gcc" -mcpu=hazard3-rp2350 -mno-strict-align -dM -E - 2>/dev/null || true)
+          case $macros in
+            *__riscv_misaligned_avoid*)
+              echo "ok: predefines __riscv_misaligned_avoid" ;;
+            *)
+              echo "::error::-mcpu=hazard3-rp2350 does not predefine __riscv_misaligned_avoid"
+              printf '%s\n' "$macros" | grep misaligned || true
+              fail=1 ;;
+          esac
 
           exit $fail
 

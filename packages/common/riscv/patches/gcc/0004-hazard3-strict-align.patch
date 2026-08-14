@@ -6,13 +6,21 @@ Hazard3 has no hardware support for misaligned loads and stores: every
 misaligned access traps.  Avoiding them is therefore a property of the
 core rather than a tuning preference, but at present it is only expressed
 as one -- the hazard3 tune entry is aliased to rocket_tune_info, whose
-slow_unaligned_access is true, so -mstrict-align merely defaults to on
-and -mno-strict-align is enough to get trapping code out of the
-compiler.
+slow_unaligned_access is true, so -mstrict-align merely defaults to on.
+-mno-strict-align then turns STRICT_ALIGNMENT back off; what keeps
+misaligned accesses out of the generated code after that is only
+
+  riscv_slow_unaligned_access_p = (cpu->tune_param->slow_unaligned_access
+				   || TARGET_STRICT_ALIGN);
+
+that is, the tune's opinion that they are expensive, rather than any
+rule that they are forbidden.
 
 Force strict alignment whenever the compiler is tuning for Hazard3, even
 if -mno-strict-align was given explicitly; warn once in that case.
-Targets that tune for something else are unaffected.
+Targets that tune for something else are unaffected -- in particular
+-mtune naming a core with fast misaligned accesses still gets them, even
+alongside -mcpu=hazard3-rp2350.
 
 Since misaligned accesses now trap rather than merely being slow, this
 also makes Hazard3 predefine __riscv_misaligned_avoid in place of
