@@ -11,8 +11,12 @@ mkdir -p $INSTALLDIR
 BUILDDIR=$(pwd)
 
 export NEWLIB_TUPLE=riscv32-pico-elf
-export NEWLIB_TARGET_FLAGS_EXTRA="--disable-newlib-hw-misaligned-access"
-export CFLAGS_FOR_TARGET_EXTRA="-mtune=hazard3"
+# Force newlib codegen to disable misaligned access, and use the hazard3 tune
+export CFLAGS_FOR_TARGET_EXTRA="-mstrict-align -mtune=hazard3"
+# This isn't necessary, because newlib configure picks up -mstrict-align
+# and sets _HAVE_HW_MISALIGNED_ACCESS=no, but leaving in case of future
+# bugs in newlib that do require this
+# export NEWLIB_TARGET_FLAGS_EXTRA="--disable-newlib-hw-misaligned-access"
 
 cd riscv-gnu-toolchain
 ./configure --prefix=$BUILDDIR/$INSTALLDIR --enable-strip --disable-linux \

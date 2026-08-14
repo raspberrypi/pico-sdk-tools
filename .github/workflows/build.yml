@@ -324,10 +324,11 @@ jobs:
           exit $fail
 
       # The check above covers what newlib baked in at build time; this covers
-      # what the compiler does to the SDK's own code. Strict alignment is forced
-      # for a Hazard3 tune by a local patch (packages/common/riscv/patches/gcc/
-      # 0004-hazard3-strict-align.patch), which a toolchain bump can silently
-      # drop.
+      # what the compiler does to the SDK's own code. Nothing forces strict
+      # alignment: it is the default that falls out of the hazard3 tune
+      # (RISCV_TUNE("hazard3", generic, rocket_tune_info), whose
+      # slow_unaligned_access is true), and a toolchain bump can change that
+      # default without anything else noticing.
       - name: Test riscv-toolchain codegen is safe on Hazard3
         if: env.SKIP_RISCV != 1
         shell: bash
@@ -356,7 +357,7 @@ jobs:
           int packed_load (struct s *p) { return p->v; }
           EOF
 
-          check_bytewise () {
+          check_strict () {
             desc=$1; shift
             if ! "$gcc" "$@" -O2 -S -o "$d/out.s" "$d/packed.c" 2>"$d/err"; then
               echo "::error::$desc: compile failed"
@@ -369,52 +370,29 @@ jobs:
               echo "::error::$desc: packed_load reads the field with a misaligned word/halfword access"
               printf '%s\n' "$body"
               fail=1
-            elif ! printf '%s\n' "$body" | grep -qE '^[[:space:]]*lbu?[[:space:]]'; then
+              return
+            fi
+            if ! printf '%s\n' "$body" | grep -qE '^[[:space:]]*lbu?[[:space:]]'; then
               echo "::error::$desc: packed_load has no byte loads -- has this stopped testing anything?"
               printf '%s\n' "$body"
               fail=1
-            else
-              echo "ok: $desc"
+              return
             fi
+            echo "ok: $desc"
           }
 
           # The flag sets the SDK uses, in the order it prefers them
-          # (cmake/preload/toolchains/pico_riscv_gcc.cmake), then the two ways to
-          # ask for misaligned accesses anyway.
-          check_bytewise "-mcpu=hazard3-rp2350" \
+          # (cmake/preload/toolchains/pico_riscv_gcc.cmake), and the explicit
+          # -mstrict-align newlib is built with (CFLAGS_FOR_TARGET_EXTRA in
+          # packages/*/riscv/build-riscv-gcc.sh).
+          check_strict "-mcpu=hazard3-rp2350" \
             -mcpu=hazard3-rp2350
-          check_bytewise "SDK fallback -march (zca_zcb_zcmp)" \
+          check_strict "SDK fallback -march (zca_zcb_zcmp)" \
             -march=rv32ima_zicsr_zifencei_zba_zbb_zbs_zbkb_zca_zcb_zcmp -mabi=ilp32
-          check_bytewise "SDK fallback -march (rv32imac)" \
+          check_strict "SDK fallback -march (rv32imac)" \
             -march=rv32imac_zicsr_zifencei_zba_zbb_zbs_zbkb -mabi=ilp32
-          check_bytewise "-mcpu=hazard3-rp2350 -mno-strict-align" \
-            -mcpu=hazard3-rp2350 -mno-strict-align
-          check_bytewise "-mtune=hazard3 -mno-strict-align" \
-            -march=rv32imac -mabi=ilp32 -mtune=hazard3 -mno-strict-align
-
-          # Overriding -mno-strict-align silently would be worse than honouring
-          # it, so the override has to say so.
-          out=$("$gcc" -mcpu=hazard3-rp2350 -mno-strict-align -O2 -S -o "$d/out.s" "$d/packed.c" 2>&1 || true)
-          case $out in
-            *"not supported when targeting Hazard3"*)
-              echo "ok: -mno-strict-align warns" ;;
-            *)
-              echo "::error::-mno-strict-align was overridden without a warning"
-              printf '%s\n' "$out"
-              fail=1 ;;
-          esac
-
-          # __riscv_misaligned_avoid is what portable source should see: on
-          # Hazard3 these accesses trap, they are not merely slow.
-          macros=$(echo | "$gcc" -mcpu=hazard3-rp2350 -mno-strict-align -dM -E - 2>/dev/null || true)
-          case $macros in
-            *__riscv_misaligned_avoid*)
-              echo "ok: predefines __riscv_misaligned_avoid" ;;
-            *)
-              echo "::error::-mcpu=hazard3-rp2350 does not predefine __riscv_misaligned_avoid"
-              printf '%s\n' "$macros" | grep misaligned || true
-              fail=1 ;;
-          esac
+          check_strict "-mcpu=hazard3-rp2350 -mstrict-align" \
+            -mcpu=hazard3-rp2350 -mstrict-align
 
           exit $fail
 
