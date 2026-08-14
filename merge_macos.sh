@@ -13,6 +13,8 @@ export version=$(cat ./version.txt)
 suffix="mac"
 builddir="build"
 
+mkdir -p "bin"
+
 cd $builddir
 if [[ "$SKIP_OPENOCD" != 1 ]]; then
     ../packages/macos/make-universal.sh "openocd-install"
@@ -82,7 +84,7 @@ fi
 if [[ "$SKIP_RISCV" != 1 ]]; then
     echo "Packaging RISC-V Toolchain"
     # Package riscv toolchain separately as well
-    version=$("./$builddir/riscv-install/bin/riscv32-unknown-elf-gcc" -dumpversion)
+    version=$("./$builddir/riscv-install/bin/riscv32-pico-elf-gcc" -dumpversion)
     version=$(echo $version | cut -d "." -f 1)
     echo "Risc-V Toolchain version $version"
 

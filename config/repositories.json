@@ -10,12 +10,12 @@
     },
     {
       "href": "https://github.com/raspberrypi/openocd.git",
-      "tree": "sdk-2.2.0",
+      "tree": "sdk-2.3.0",
       "submodules": true
     },
     {
       "href": "https://github.com/riscv/riscv-gnu-toolchain.git",
-      "tree": "2026.05.06"
+      "tree": "2026.07.15"
     }
   ]
 }

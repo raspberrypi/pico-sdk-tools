@@ -4,6 +4,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 env:
   SKIP_RISCV: 0
@@ -43,30 +44,70 @@ jobs:
             bin/openocd-*-x64-win.zip
             bin/riscv-toolchain-*-x64-win.zip
 
-  build_macos:
-    name: Build MacOS
-    runs-on: 'macos-14'
+  build_macos_arch:
+    name: Build MacOS (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            arch: arm64
+          - os: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-      - name: Set up arm64 Homebrew
-        id: set-up-homebrew
+      - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@main
-      - name: Build arm64
+      - name: Build
         run: ./build_macos.sh
-      - name: Uninstall arm64 Homebrew
+      - name: Package build output
+        # actions/upload-artifact does not preserve unix file permissions when
+        # uploading a directory tree, which loses the executable bit on the
+        # binaries to be merged (https://github.com/actions/upload-artifact/issues/38).
+        # Tar them first so the merge job has the correct permissions.
         run: |
-          NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
-          rm -rf /opt/homebrew || true
-      - name: Set up x86_64 Homebrew
+          cd build
+          dirs=()
+          for d in openocd-install-${{ matrix.arch }} riscv-install-${{ matrix.arch }} picotool-install-${{ matrix.arch }} pico-sdk-tools-${{ matrix.arch }}; do
+            [ -d "$d" ] && dirs+=("$d")
+          done
+          tar -cf ../build-mac-${{ matrix.arch }}.tar "${dirs[@]}"
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-mac-${{ matrix.arch }}
+          path: build-mac-${{ matrix.arch }}.tar
+
+  build_macos:
+    name: Build MacOS (merge)
+    needs: build_macos_arch
+    runs-on: 'macos-15'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Download builds
+        uses: actions/download-artifact@v7
+        with:
+          pattern: build-mac-*
+          path: downloads
+          merge-multiple: true
+      - name: Extract build output
         run: |
-          NONINTERACTIVE=1 arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-      - name: Install x86_64 pkg-config & cmake
-        run: |
-          arch -x86_64 /usr/local/bin/brew install pkg-config cmake
-      - name: Build x86_64
-        run: arch -x86_64 ./build_macos.sh
+          mkdir -p build
+          for f in downloads/*.tar; do
+            tar -xf "$f" -C build
+          done
+      - name: Delete arch artifacts
+        # No longer needed once extracted; only the merged universal binary is kept.
+        uses: geekyeggo/delete-artifact@v6
+        with:
+          name: build-mac-*
+          useGlob: true
+          failOnError: false
       - name: Merge Universal Binaries
         run: ./merge_macos.sh
       - name: Upload Artifact
@@ -93,7 +134,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, [self-hosted, linux, arm64, bookworm, 8G]]
+        os: [ubuntu-22.04, [self-hosted, linux, arm64, bookworm, 16G]]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -172,6 +213,22 @@ jobs:
           tar -xvf riscv-toolchain*.tar.gz || true
           ls
 
+      - name: Checkout Pico SDK
+        uses: actions/checkout@v7
+        with:
+          repository: raspberrypi/pico-sdk
+          ref: develop
+          path: pico-sdk
+          submodules: true
+      - name: Test Risc-V kitchen_sink build
+        if: env.SKIP_RISCV != 1 && runner.environment == 'github-hosted'
+        shell: bash # Windows only has grep in bash shell
+        run: |
+          cmake -S pico-sdk -B build-pico-sdk -DPICO_TOOLCHAIN_PATH=${GITHUB_WORKSPACE} -Dpicotool_DIR=${GITHUB_WORKSPACE}/picotool -Dpioasm_DIR=${GITHUB_WORKSPACE}/pioasm -DPICO_PLATFORM=rp2350-riscv -GNinja
+          cmake --build build-pico-sdk --target kitchen_sink
+          cat ./build-pico-sdk/CMakeCache.txt
+          cat ./build-pico-sdk/CMakeCache.txt | grep hazard3-rp2350
+
       - name: Clean runner (MacOS)
         if: runner.os == 'macOS'
         run: |
@@ -191,6 +248,151 @@ jobs:
       - name: Test riscv-toolchain runs
         if: env.SKIP_RISCV != 1
         run: |
-          ./bin/riscv32-unknown-elf-gcc --version
-          ./bin/riscv32-unknown-elf-gdb --version
+          ./bin/riscv32-pico-elf-gcc --version
+          ./bin/riscv32-pico-elf-gdb --version
+      # Hazard3 traps on misaligned accesses, so newlib must keep the alignment
+      # checks in its string functions. A newlib that believes the hardware can
+      # do misaligned access compiles them out and hangs on RP2350 at the first
+      # unaligned strcmp/strncmp/strcpy. See raspberrypi/pico-sdk#3118.
+      - name: Test riscv-toolchain libc is safe on Hazard3
+        if: env.SKIP_RISCV != 1
+        shell: bash
+        run: |
+          set -u
+          root=$PWD
+          fail=0
+          checked=0
+
+          # Derive the tuple rather than hardcoding it: it has changed once
+          # already (riscv32-unknown-elf -> riscv32-pico-elf), and hardcoding it
+          # makes this step find nothing and pass silently.
+          # Loop rather than ls: one of the two globs never matches (.exe only
+          # on Windows), so ls always exits 2 and, under the runner's
+          # `bash -e -o pipefail`, kills the step before it checks anything.
+          gcc=
+          for candidate in "$root"/bin/*-gcc "$root"/bin/*-gcc.exe; do
+            if [ -f "$candidate" ]; then gcc=$candidate; break; fi
+          done
+          if [ -z "$gcc" ]; then
+            echo "::error::no RISC-V gcc found under bin/"
+            exit 1
+          fi
+          tuple=$(basename "$gcc"); tuple=${tuple%-gcc}; tuple=${tuple%-gcc.exe}
+          echo "toolchain tuple: $tuple"
+
+          # newlib decides this in two independent places, so check both.
+
+          # 1. Generic C routines (strncmp, memcmp, ...) test
+          #    _HAVE_HW_MISALIGNED_ACCESS, set by newlib's configure.
+          while IFS= read -r h; do
+            checked=$((checked+1))
+            if grep -q "define _HAVE_HW_MISALIGNED_ACCESS" "$h"; then
+              echo "::error::${h#$root/} defines _HAVE_HW_MISALIGNED_ACCESS"
+              fail=1
+            fi
+          done < <(find "$tuple/include" -name newlib.h 2>/dev/null)
+
+          # 2. RISC-V specific routines (strcmp.S, rv_string.h, memcpy.c, ...)
+          #    test __riscv_misaligned_slow/_fast directly and ignore the
+          #    configure setting; only -mstrict-align reaches them. strcmp is the
+          #    canary: they share flags, and .Lmisaligned is a stable label in the
+          #    hand-written assembly, so this does not depend on codegen details.
+          while IFS= read -r libc; do
+            d=$(mktemp -d)
+            # A libc.a without that member is not a failure, so do not let the
+            # runner's `bash -e` turn a missing one into a dead step.
+            ( cd "$d" && "$root/bin/$tuple-ar" x "$root/$libc" libc_a-strcmp.o 2>/dev/null ) || true
+            [ -f "$d/libc_a-strcmp.o" ] || continue
+            checked=$((checked+1))
+            # Disassemble into a variable: piping straight into grep -q lets it
+            # exit first and SIGPIPE the writer, which pipefail then reports as
+            # a failed check.
+            dis=$("$root/bin/$tuple-objdump" -d "$d/libc_a-strcmp.o" | sed -n '1,14p')
+            if ! printf '%s\n' "$dis" | grep -q "Lmisaligned"; then
+              echo "::error::$libc: strcmp has no alignment check"
+              printf '%s\n' "$dis"
+              fail=1
+            fi
+          done < <(find "$tuple/lib" -name libc.a 2>/dev/null)
+
+          if [ "$checked" -eq 0 ]; then
+            echo "::error::checked nothing -- has the artefact layout changed?"
+            fail=1
+          fi
+          echo "checked $checked item(s)"
+
+          exit $fail
+
+      # The check above covers what newlib baked in at build time; this covers
+      # what the compiler does to the SDK's own code. Nothing forces strict
+      # alignment: it is the default that falls out of the hazard3 tune
+      # (RISCV_TUNE("hazard3", generic, rocket_tune_info), whose
+      # slow_unaligned_access is true), and a toolchain bump can change that
+      # default without anything else noticing.
+      - name: Test riscv-toolchain codegen is safe on Hazard3
+        if: env.SKIP_RISCV != 1
+        shell: bash
+        run: |
+          set -u
+          root=$PWD
+          fail=0
+
+          gcc=
+          for candidate in "$root"/bin/*-gcc "$root"/bin/*-gcc.exe; do
+            if [ -f "$candidate" ]; then gcc=$candidate; break; fi
+          done
+          if [ -z "$gcc" ]; then
+            echo "::error::no RISC-V gcc found under bin/"
+            exit 1
+          fi
+
+          d=$(mktemp -d)
+          # Reading a packed field is the clearest way to ask for an access the
+          # compiler cannot assume is aligned: it has to be done byte-wise
+          # unless misaligned loads are allowed. A leaf function with no stack
+          # traffic keeps the test honest -- any lw/lh in its body is the
+          # misaligned access itself, not a spill reload.
+          cat > "$d/packed.c" <<'EOF'
+          struct s { char c; int v; } __attribute__((packed));
+          int packed_load (struct s *p) { return p->v; }
+          EOF
+
+          check_strict () {
+            desc=$1; shift
+            if ! "$gcc" "$@" -O2 -S -o "$d/out.s" "$d/packed.c" 2>"$d/err"; then
+              echo "::error::$desc: compile failed"
+              cat "$d/err"
+              fail=1
+              return
+            fi
+            body=$(awk '/^packed_load:/,/\.size[[:space:]]+packed_load/' "$d/out.s")
+            if printf '%s\n' "$body" | grep -qE '^[[:space:]]*(lw|lh|lhu)[[:space:]]'; then
+              echo "::error::$desc: packed_load reads the field with a misaligned word/halfword access"
+              printf '%s\n' "$body"
+              fail=1
+              return
+            fi
+            if ! printf '%s\n' "$body" | grep -qE '^[[:space:]]*lbu?[[:space:]]'; then
+              echo "::error::$desc: packed_load has no byte loads -- has this stopped testing anything?"
+              printf '%s\n' "$body"
+              fail=1
+              return
+            fi
+            echo "ok: $desc"
+          }
+
+          # The flag sets the SDK uses, in the order it prefers them
+          # (cmake/preload/toolchains/pico_riscv_gcc.cmake), and the explicit
+          # -mstrict-align newlib is built with (CFLAGS_FOR_TARGET_EXTRA in
+          # packages/*/riscv/build-riscv-gcc.sh).
+          check_strict "-mcpu=hazard3-rp2350" \
+            -mcpu=hazard3-rp2350
+          check_strict "SDK fallback -march (zca_zcb_zcmp)" \
+            -march=rv32ima_zicsr_zifencei_zba_zbb_zbs_zbkb_zca_zcb_zcmp -mabi=ilp32
+          check_strict "SDK fallback -march (rv32imac)" \
+            -march=rv32imac_zicsr_zifencei_zba_zbb_zbs_zbkb -mabi=ilp32
+          check_strict "-mcpu=hazard3-rp2350 -mstrict-align" \
+            -mcpu=hazard3-rp2350 -mstrict-align
+
+          exit $fail
 

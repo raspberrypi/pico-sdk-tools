@@ -1,0 +1,75 @@
+From 728730c185ce67682d175ecb2b0d9afccff4ae55 Mon Sep 17 00:00:00 2001
+From: William Vinnicombe <william.vinnicombe@raspberrypi.com>
+Date: Thu, 16 Jul 2026 15:16:22 +0100
+Subject: [PATCH] RISC-V: Allow multilib-generator to override multilib
+ dirnames
+
+MULTILIB_DIRNAMES only names the on-disk directory for a multilib
+variant; -march recognition is driven by MULTILIB_OPTIONS/REQUIRED,
+which are untouched here. Allow an optional 5th, dash-separated field
+on a config entry (<arch>-<abi>-<extra>-<extensions>-<dirname>) to
+override just the directory name, so builds with tight path length
+budgets (e.g. Windows) can request a short alias for a long
+canonicalised arch string without affecting -march matching.
+---
+ gcc/config/riscv/multilib-generator | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/gcc/config/riscv/multilib-generator b/gcc/config/riscv/multilib-generator
+index 52419da72..927f8dae5 100755
+--- a/gcc/config/riscv/multilib-generator
++++ b/gcc/config/riscv/multilib-generator
+@@ -48,6 +48,7 @@ import argparse
+ 
+ SUPPORTED_ISA_SPEC = ["2.2", "20190608", "20191213"]
+ arches = collections.OrderedDict()
++dirnames = collections.OrderedDict()
+ abis = collections.OrderedDict()
+ required = []
+ reuse = []
+@@ -151,10 +152,15 @@ cmodel_dirnames = ' \\\n'.join(cmodels[1:])
+ 
+ for cmodel in cmodels:
+   for cfg in args.cfgs:
++    dirname_alias = None
+     try:
+-      (arch, abi, extra, ext) = cfg.split('-')
++      parts = cfg.split('-')
++      if len(parts) == 5:
++        (arch, abi, extra, ext, dirname_alias) = parts
++      else:
++        (arch, abi, extra, ext) = parts
+     except:
+-      print ("Invalid configure string %s, <arch>-<abi>-<extra>-<extensions>\n"
++      print ("Invalid configure string %s, <arch>-<abi>-<extra>-<extensions>[-<dirname>]\n"
+              "<extra> and <extensions> can be empty, "
+              "e.g. rv32imafd-ilp32--" % cfg)
+       sys.exit(1)
+@@ -165,6 +171,7 @@ for cmodel in cmodels:
+ 
+     arch = arch_canonicalize (arch, args.misa_spec)
+     arches[arch] = 1
++    dirnames.setdefault(arch, dirname_alias or arch)
+     abis[abi] = 1
+     extra = list(filter(None, extra.split(',')))
+     ext_combs = expand_combination(ext)
+@@ -179,6 +186,7 @@ for cmodel in cmodels:
+       if alt == arch:
+         continue
+       arches[alt] = 1
++      dirnames.setdefault(alt, alt)
+       reuse.append('march.%s/mabi.%s=march.%s/mabi.%s' % (arch, abi, alt, abi))
+ 
+     if cmodel:
+@@ -187,7 +195,7 @@ for cmodel in cmodels:
+       required.append('march=%s/mabi=%s' % (arch, abi))
+ 
+   arch_options = '/'.join(['march=%s' % x for x in arches.keys()])
+-  arch_dirnames = ' \\\n'.join(arches.keys())
++  arch_dirnames = ' \\\n'.join(dirnames[x] for x in arches.keys())
+ 
+   abi_options = '/'.join(['mabi=%s' % x for x in abis.keys()])
+   abi_dirnames = ' \\\n'.join(abis.keys())
+-- 
+2.34.1
+

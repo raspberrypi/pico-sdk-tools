@@ -208,12 +208,15 @@ if (-not $SkipDownload) {
   # Normal update
   msys 'pacman --noconfirm -Suu'
 
-  msys "pacman -S --noconfirm --needed autoconf automake base-devel expat git libtool pactoys patchutils pkg-config"
+  msys "pacman -S --noconfirm --needed autoconf automake base-devel expat git libtool texinfo pactoys patchutils pkg-config"
   # pacboy adds MINGW_PACKAGE_PREFIX to package names suffixed with :p
   msys "pacboy -S --noconfirm --needed cmake:p ninja:p toolchain:p libusb:p hidapi:p libslirp:p"
 }
 
 if (-not (Test-Path ".\build\riscv-install\$msysEnv") -and ($env:SKIP_RISCV -ne '1')) {
+  # Workaround for sourceware.org sometimes not working
+  msys "cd build && ../packages/common/riscv/download-submodules.sh"
+  msys "cd build && ../packages/common/riscv/apply-patches.sh"
   msys "cd build && ../packages/windows/riscv/build-riscv-gcc.sh"
 }
 
@@ -285,7 +288,7 @@ if ($env:SKIP_OPENOCD -ne '1') {
 if ($env:SKIP_RISCV -ne '1') {
   # Package Risc-V separately as well
 
-  $version = ((. ".\build\riscv-install\$msysEnv\bin\riscv32-unknown-elf-gcc.exe" -dumpversion) -split '\.')[0]
+  $version = ((. ".\build\riscv-install\$msysEnv\bin\riscv32-pico-elf-gcc.exe" -dumpversion) -split '\.')[0]
 
   $filename = 'riscv-toolchain-{0}-{1}.zip' -f
     $version,
