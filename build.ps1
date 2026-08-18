@@ -229,8 +229,8 @@ if (-not (Test-Path ".\build\riscv-install\$msysEnv") -and ($env:SKIP_RISCV -ne 
   msys "cd build && ../packages/common/riscv/download-submodules.sh"
 }
 
-# Apply any patches
-msys "cd build && ../packages/common/apply-patches.sh"
+# Apply any patches, including the Windows only ones
+msys "cd build && ../packages/common/apply-patches.sh ../packages/windows/patches"
 
 if (-not (Test-Path ".\build\riscv-install\$msysEnv") -and ($env:SKIP_RISCV -ne '1')) {
   msys "cd build && ../packages/windows/riscv/build-riscv-gcc.sh"
