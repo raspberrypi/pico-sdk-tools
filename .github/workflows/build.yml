@@ -325,9 +325,8 @@ jobs:
 
       # The check above covers what newlib baked in at build time; this covers
       # what the compiler does to the SDK's own code. Nothing forces strict
-      # alignment: it is the default that falls out of the hazard3 tune
-      # (RISCV_TUNE("hazard3", generic, rocket_tune_info), whose
-      # slow_unaligned_access is true), and a toolchain bump can change that
+      # alignment: it is the default that falls out of the hazard3 tune, whose
+      # slow_unaligned_access is true, and a toolchain bump can change that
       # default without anything else noticing.
       - name: Test riscv-toolchain codegen is safe on Hazard3
         if: env.SKIP_RISCV != 1

@@ -51,6 +51,17 @@ do
     filename=${filename%"-rp2350"}
     repodir="$builddir/${filename}"
 
+    skip=
+    if [[ "$(echo "$repo" | jq -r .riscv)" == "true" ]] && [[ "$SKIP_RISCV" == 1 ]]; then
+        skip=SKIP_RISCV
+    elif [[ "$(echo "$repo" | jq -r .openocd)" == "true" ]] && [[ "$SKIP_OPENOCD" == 1 ]]; then
+        skip=SKIP_OPENOCD
+    fi
+    if [[ -n "$skip" ]]; then
+        echo "Skipping ${href} as ${skip} is set"
+        continue
+    fi
+
     echo "${href} ${tree} ${filename} ${extension} ${repodir}"
     rm -rf "${repodir}"
     git clone -b "${tree}" --depth=1 -c advice.detachedHead=false "${href}" "${repodir}"
@@ -62,6 +73,14 @@ done < <(echo "$repos")
 
 
 cd $builddir
+if [[ "$SKIP_RISCV" != 1 ]]; then
+    # Workaround for sourceware.org sometimes not working
+    ../packages/common/riscv/download-submodules.sh
+fi
+
+# Apply any patches
+../packages/common/apply-patches.sh
+
 if [[ "$SKIP_OPENOCD" != 1 ]]; then
     if ! ../packages/macos/openocd/build-openocd.sh; then
         echo "::error title=openocd-fail-macos::OpenOCD Build Failed on macOS"
@@ -75,9 +94,6 @@ if [[ "$SKIP_OPENOCD" != 1 ]]; then
 fi
 if [[ "$SKIP_RISCV" != 1 ]]; then
     # Takes ages to build
-    # Workaround for sourceware.org sometimes not working
-    ../packages/common/riscv/download-submodules.sh
-    ../packages/common/riscv/apply-patches.sh
     ../packages/macos/riscv/build-riscv-gcc.sh
     echo "RISC-V Build Complete"
 

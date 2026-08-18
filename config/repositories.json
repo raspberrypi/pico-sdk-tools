@@ -11,11 +11,23 @@
     {
       "href": "https://github.com/raspberrypi/openocd.git",
       "tree": "sdk-2.3.0",
-      "submodules": true
+      "submodules": true,
+      "openocd": true
     },
     {
       "href": "https://github.com/riscv/riscv-gnu-toolchain.git",
-      "tree": "2026.07.15"
+      "tree": "2026.07.15",
+      "riscv": true
+    },
+    {
+      "href": "https://github.com/Wren6991/gcc.git",
+      "tree": "load-packh",
+      "riscv": true
+    },
+    {
+      "href": "https://github.com/Wren6991/binutils-gdb.git",
+      "tree": "hazard3",
+      "riscv": true
     }
   ]
 }

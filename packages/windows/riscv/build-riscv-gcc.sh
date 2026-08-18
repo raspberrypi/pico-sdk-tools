@@ -20,6 +20,7 @@ export CFLAGS_FOR_TARGET_EXTRA="-mstrict-align -mtune=hazard3"
 
 cd riscv-gnu-toolchain
 ./configure --prefix=$BUILDDIR/$INSTALLDIR --enable-strip --disable-linux \
+    --with-gcc-src=$BUILDDIR/gcc --with-binutils-src=$BUILDDIR/binutils-gdb \
     --with-arch=rv32ima_zicsr_zifencei_zba_zbb_zbs_zbkb_zca_zcb_zcmp --with-abi=ilp32 \
     --with-multilib-generator="\
         rv32ima_zicsr_zifencei_zba_zbb_zbs_zbkb_zca_zcb_zcmp-ilp32--;\
