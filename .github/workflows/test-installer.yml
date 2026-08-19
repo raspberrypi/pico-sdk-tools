@@ -31,6 +31,7 @@ jobs:
         uses: ./installer
         with:
           sdk-version: ${{ matrix.sdk }}
+          openocd: true   # off by default, so ask for it to cover it here
 
       # Only so that `openocd --version` runs below. The action deliberately
       # does not install these: a hosted runner has no hardware to debug.

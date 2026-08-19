@@ -28,6 +28,13 @@ inputs:
       arm-toolchain riscv-toolchain pico-sdk-tools picotool openocd cmake ninja
     required: false
     default: ''
+  openocd:
+    description: >-
+      Install OpenOCD as well. Off by default, since a hosted runner has nothing
+      to debug and the runner images lack the libraries OpenOCD links against.
+      Worth turning on for a self-hosted runner with hardware attached.
+    required: false
+    default: 'false'
   cache:
     description: Cache the install directory between runs
     required: false
@@ -104,6 +111,9 @@ runs:
         for component in $(echo '${{ inputs.skip }}' | tr ',' ' '); do
           skip_args="$skip_args --no-$component"
         done
+        if [ '${{ inputs.openocd }}' != 'true' ]; then
+          skip_args="$skip_args --no-openocd"
+        fi
 
         # The newest release tag belongs in the cache key, or a warm cache
         # would pin the job to an older build. Not worth failing over.
@@ -124,6 +134,7 @@ runs:
           "$python_bin" -c 'import hashlib,sys; h=hashlib.sha256(); h.update(open(sys.argv[1],"rb").read()); h.update("\0".join(sys.argv[2:]).encode()); print(h.hexdigest()[:16])' \
             "${{ github.action_path }}/install_pico_tools.py" \
             '${{ inputs.skip }}' \
+            '${{ inputs.openocd }}' \
             '${{ inputs.extension-data-url }}' \
             '${{ inputs.extra-args }}'
         )

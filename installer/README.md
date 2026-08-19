@@ -204,12 +204,31 @@ leaves no trace in the home directory of a self-hosted runner.
 | `platform`           | from `runner.os`/`arch` | Override to cross-download                          |
 | `install-dir`        | `~/.pico-sdk`           |                                                     |
 | `skip`               | *(none)*                | Space- or comma-separated component names           |
+| `openocd`            | `false`                 | Install OpenOCD too — see below                     |
 | `cache`              | `true`                  | `actions/cache` over the install directory          |
 | `extension-data-url` | newest published        | Pin a different Pico VS Code data version           |
 | `github-token`       | `${{ github.token }}`   | Used for the API calls that resolve tool releases   |
 | `extra-args`         | *(none)*                | Passed through to `install_pico_tools.py`           |
 
 Outputs: `install-dir`, `platform`, `cache-hit`.
+
+### OpenOCD
+
+OpenOCD is the one component the action leaves out by default. A hosted runner
+has no debug hardware attached, and the runner images do not carry the
+`libftdi1` and `libhidapi-hidraw` libraries it links against, so installing it
+costs a download and buys nothing. On a self-hosted runner with hardware:
+
+```yaml
+  - uses: raspberrypi/pico-sdk-tools/installer@main
+    with:
+      sdk-version: '2.3.0'
+      openocd: true
+```
+
+It is a separate input rather than a default for `skip` so that naming other
+components does not quietly bring OpenOCD back. `skip: openocd` still works, and
+wins if you pass both.
 
 ### Caching
 
@@ -250,14 +269,14 @@ jobs:
 `raspberrypi/pico-sdk-prebuilts` builds the universal UF2s from
 `pico-examples`. An apt install of CMake and ninja, a hand-rolled
 `actions/cache` block and a `download_extract_tools.sh` unpacking four tarballs
-all collapse into one step:
+all collapse into one step, and it needs no `skip` at all now that OpenOCD is
+opt-in:
 
 ```yaml
       - name: Install Toolchains & Tools
         uses: raspberrypi/pico-sdk-tools/installer@main
         with:
           sdk-version: ${{ env.SDK_TOOLS_VERSION }}
-          skip: openocd
 
       - name: Checkout Pico SDK
         uses: actions/checkout@v6
