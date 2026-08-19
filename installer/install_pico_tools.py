@@ -36,9 +36,9 @@ from io import StringIO
 from pathlib import Path
 
 GITHUB_API = "https://api.github.com"
+GITHUB_RAW = "https://raw.githubusercontent.com"
 PICO_VSCODE_REPO = "raspberrypi/pico-vscode"
 PICO_SDK_TOOLS_REPO = "raspberrypi/pico-sdk-tools"
-EXTENSION_DATA_URL = "https://raspberrypi.github.io/pico-vscode"
 
 GITHUB_NINJA = "https://github.com/ninja-build/ninja"
 GITHUB_CMAKE = "https://github.com/Kitware/CMake"
@@ -217,11 +217,7 @@ def github_api(path: str, token: str | None):
 
 
 def latest_extension_data_version(token: str | None) -> str:
-    """Newest data directory published by the Pico VS Code extension.
-
-    The extension keeps one directory of version metadata per data version, so
-    the highest one describes the newest SDK releases it knows about.
-    """
+    """Newest version-metadata directory published by the Pico VS Code extension."""
     entries = github_api(f"/repos/{PICO_VSCODE_REPO}/contents/data", token)
     versions = []
     for entry in entries:
@@ -232,8 +228,17 @@ def latest_extension_data_version(token: str | None) -> str:
         if parts and all(part.isdigit() for part in parts):
             versions.append((tuple(int(part) for part in parts), name))
     if not versions:
-        raise RuntimeError(f"No data directories found in {PICO_VSCODE_REPO}")
+        raise RuntimeError(f"No data directories in {PICO_VSCODE_REPO}")
     return max(versions)[1]
+
+
+def extension_data_url(version: str) -> str:
+    """Where that version's metadata files live.
+
+    Read from the repository, not the published site: the version number came
+    from the repository, and the site can lag behind it after a release.
+    """
+    return f"{GITHUB_RAW}/{PICO_VSCODE_REPO}/main/data/{version}"
 
 
 def fetch_releases(repo: str, token: str | None) -> list[dict]:
@@ -259,9 +264,7 @@ def find_release_asset(
 ) -> tuple[str, str, re.Match]:
     """Locate an asset in the newest release that publishes it.
 
-    The API returns releases newest first, so the first match is the most recent
-    build of that asset -- which is how a new SDK version is picked up without
-    changing anything here.
+    Releases come back newest first, so the first match is the most recent build.
     """
     for release in releases:
         if tag and release["tag_name"] != tag:
@@ -561,10 +564,10 @@ def main() -> int:
             base = ""  # both files are local, nothing to discover
         else:
             data_version = latest_extension_data_version(token)
-            base = f"{EXTENSION_DATA_URL}/{data_version}"
+            base = extension_data_url(data_version)
             print(f"Pico VS Code data version {data_version}")
     except (RuntimeError, OSError) as exc:
-        print(f"Failed to find the extension data URL: {exc}", file=sys.stderr)
+        print(f"Failed to find the Pico VS Code data version: {exc}", file=sys.stderr)
         return 1
 
     try:
@@ -611,8 +614,6 @@ def main() -> int:
         skip["riscv-toolchain"] = True
 
     # ---- pico-sdk-tools release assets ------------------------------------
-    # Everything below comes out of the release list rather than a table in this
-    # file, so a new SDK version needs no changes here.
     suffix = TOOLS_ASSET_SUFFIX[platform_key]
     from_releases = ("pico-sdk-tools", "picotool", "openocd")
     assets: dict[str, tuple[str, str, re.Match]] = {}
@@ -625,8 +626,8 @@ def main() -> int:
 
         tools_name = f"pico-sdk-tools-{sdk_version}-{suffix}"
         picotool_name = f"picotool-{picotool_version}-{suffix}"
-        # The OpenOCD version is not in versionBundles.json, so read it off
-        # whichever release publishes the newest build.
+        # OpenOCD has no entry in versionBundles.json, so take its version
+        # from the asset name.
         openocd_name = (
             f"openocd-{args.openocd_version}-{suffix}"
             if args.openocd_version
@@ -825,11 +826,9 @@ def main() -> int:
         env_vars.append(("OPENOCD_SCRIPTS", openocd_dir / "scripts"))
     if not skip["arm-toolchain"]:
         path_entries.append(arm_dir / "bin")
-        # Deliberately not PICO_TOOLCHAIN_PATH: the SDK searches only that
-        # directory first, so pinning it to the Arm toolchain makes every RISC-V
-        # configure emit a "not found there" warning before falling back to
-        # PATH. Both bin directories are on PATH, and the SDK looks for a
-        # specific triple, so it picks the right compiler on its own.
+        # Not PICO_TOOLCHAIN_PATH: pinning it to the Arm toolchain makes
+        # every RISC-V configure warn before falling back to PATH, which finds
+        # the right compiler by triple anyway.
         env_vars.append(("PICO_ARM_TOOLCHAIN_PATH", arm_dir))
     if not skip["riscv-toolchain"]:
         path_entries.append(riscv_dir / "bin")

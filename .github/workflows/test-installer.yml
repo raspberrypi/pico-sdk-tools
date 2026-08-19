@@ -21,10 +21,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-13, windows-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel, windows-latest]
         sdk: ['2.3.0']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Pico SDK tools
         id: tools
@@ -38,7 +38,12 @@ jobs:
           set -euo pipefail
           echo "installed into ${{ steps.tools.outputs.install-dir }}"
           arm-none-eabi-gcc --version | head -1
-          riscv32-unknown-elf-gcc --version | head -1
+          # The RISC-V triple depends on the toolchain build the SDK version
+          # pins -- riscv32-unknown-elf and riscv32-pico-elf are both in use --
+          # so find the compiler rather than naming it.
+          riscv_gcc=$(ls "$PICO_RISCV_TOOLCHAIN_PATH/bin" |
+            grep -E '^riscv32-.*-gcc(\.exe)?$' | head -1)
+          "$riscv_gcc" --version | head -1
           picotool version | head -1
           pioasm --version
           cmake --version | head -1
@@ -56,7 +61,7 @@ jobs:
     name: Skip components
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install without RISC-V, OpenOCD, CMake or ninja
         uses: ./installer
@@ -78,9 +83,11 @@ jobs:
     name: .picorc and shell rc wiring
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install and wire up a throwaway rc file
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           python3 installer/install_pico_tools.py 2.3.0 \

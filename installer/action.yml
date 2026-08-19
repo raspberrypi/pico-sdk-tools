@@ -68,7 +68,7 @@ runs:
       id: resolve
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
       run: |
         set -euo pipefail
 
@@ -105,59 +105,66 @@ runs:
           skip_args="$skip_args --no-$component"
         done
 
-        # The installer resolves each tool to the newest pico-sdk-tools release
-        # that publishes it, so the newest tag has to be part of the cache key;
-        # otherwise a warm cache would pin the job to an older build forever.
+        # The newest release tag belongs in the cache key, or a warm cache
+        # would pin the job to an older build. Not worth failing over.
         auth=()
         if [ -n "${GITHUB_TOKEN:-}" ]; then
           auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
         fi
+        # ${auth[@]+...} tolerates an empty array under `set -u` on bash 3.2
         tools_release=$(
-          curl -fsSL "${auth[@]}" \
+          curl -fsSL ${auth[@]+"${auth[@]}"} \
             https://api.github.com/repos/raspberrypi/pico-sdk-tools/releases/latest \
-            | "$python_bin" -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])' \
-            2>/dev/null
+            | "$python_bin" -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])'
         ) || tools_release=unresolved
+
+        # Digested here because actions/cache rejects keys containing a
+        # comma, and hashFiles() only globs paths relative to the workspace.
+        digest=$(
+          "$python_bin" -c 'import hashlib,sys; h=hashlib.sha256(); h.update(open(sys.argv[1],"rb").read()); h.update("\0".join(sys.argv[2:]).encode()); print(h.hexdigest()[:16])' \
+            "${{ github.action_path }}/install_pico_tools.py" \
+            '${{ inputs.skip }}' \
+            '${{ inputs.extension-data-url }}' \
+            '${{ inputs.extra-args }}'
+        )
 
         {
           echo "platform=$platform"
           echo "install-dir=$install_dir"
           echo "python-bin=$python_bin"
           echo "skip-args=$skip_args"
-          echo "tools-release=$tools_release"
+          echo "cache-key=pico-sdk-tools-$platform-${{ inputs.sdk-version }}-$tools_release-$digest"
         } >> "$GITHUB_OUTPUT"
 
     - name: Restore cached tools
       id: cache
       if: inputs.cache == 'true'
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ${{ steps.resolve.outputs.install-dir }}
-        key: >-
-          pico-sdk-tools-${{ steps.resolve.outputs.platform }}-${{ inputs.sdk-version }}-${{
-          steps.resolve.outputs.tools-release }}-${{
-          hashFiles(format('{0}/install_pico_tools.py', github.action_path)) }}-${{
-          inputs.skip }}-${{ inputs.extension-data-url }}-${{ inputs.extra-args }}
+        key: ${{ steps.resolve.outputs.cache-key }}
 
     - name: Install Pico SDK tools
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
       run: |
         set -euo pipefail
 
-        args=()
+        # Seeded so the array is never empty, which `set -u` rejects on bash 3.2.
+        args=(
+          '${{ inputs.sdk-version }}'
+          --platform '${{ steps.resolve.outputs.platform }}'
+          --install-dir '${{ steps.resolve.outputs.install-dir }}'
+          --github-path
+          --no-picorc
+        )
         if [ -n '${{ inputs.extension-data-url }}' ]; then
           args+=(--extension-data-url '${{ inputs.extension-data-url }}')
         fi
 
         "${{ steps.resolve.outputs.python-bin }}" \
           "${{ github.action_path }}/install_pico_tools.py" \
-          '${{ inputs.sdk-version }}' \
-          --platform '${{ steps.resolve.outputs.platform }}' \
-          --install-dir '${{ steps.resolve.outputs.install-dir }}' \
-          --github-path \
-          --no-picorc \
-          ${{ steps.resolve.outputs.skip-args }} \
           "${args[@]}" \
+          ${{ steps.resolve.outputs.skip-args }} \
           ${{ inputs.extra-args }}

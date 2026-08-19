@@ -80,11 +80,13 @@ version is released:
 
 1. **Which versions belong to an SDK.** The Pico VS Code extension publishes one
    directory of version metadata per data version. The script asks the GitHub
-   API for the newest of those directories in
+   API for the newest of those in
    [`raspberrypi/pico-vscode`](https://github.com/raspberrypi/pico-vscode), then
    reads `versionBundles.json` and `supportedToolchains.ini` from it. Those give
    the Arm and RISC-V toolchain keys, the picotool version, and the CMake and
-   ninja versions for the SDK you asked for.
+   ninja versions for the SDK you asked for. The files come from the repository
+   rather than the published site, since that is where the version number came
+   from and the site can lag behind it after a release.
 2. **Which release publishes each tool.** The script lists the releases of
    [`raspberrypi/pico-sdk-tools`](https://github.com/raspberrypi/pico-sdk-tools)
    and takes each asset from the newest release that publishes it — so
@@ -93,9 +95,11 @@ version is released:
    one assembled by hand. OpenOCD's version is not in `versionBundles.json` at
    all, so it is read off the asset name.
 
-That is two GitHub API calls. Unauthenticated requests are limited to 60 an
-hour; set `GITHUB_TOKEN` (or `GH_TOKEN`, or pass `--github-token`) to raise it.
-The composite action passes the job's token automatically.
+That is two GitHub API calls, and the script stops with an explanatory error if
+either fails. Unauthenticated requests are limited to 60 an hour *per IP*, which
+CI runners share, so set `GITHUB_TOKEN` (or `GH_TOKEN`, or pass
+`--github-token`) anywhere it runs unattended. The composite action passes the
+job's token automatically.
 
 To override any of it: `--extension-data-url` pins the metadata to a particular
 published data version, `--bundles` and `--toolchains-ini` read it from local
@@ -128,8 +132,8 @@ but not found there
 
 before falling back to `PATH` and finding the right compiler anyway. Since both
 toolchain `bin` directories are on `PATH` and the SDK looks for a specific
-triple — `arm-none-eabi-gcc` or `riscv32-unknown-elf-gcc` — leaving
-`PICO_TOOLCHAIN_PATH` unset lets it pick the correct one for whichever
+triple — `arm-none-eabi-gcc`, or whichever `riscv32-*-gcc` the SDK version pins
+— leaving `PICO_TOOLCHAIN_PATH` unset lets it pick the correct one for whichever
 `PICO_PLATFORM` you asked for, with no warning and nothing to change between
 Arm and RISC-V builds.
 
@@ -209,12 +213,16 @@ Outputs: `install-dir`, `platform`, `cache-hit`.
 
 ### Caching
 
-The action wraps the install directory in `actions/cache` by default, keyed on
-the platform, the SDK version, the newest `pico-sdk-tools` release tag, the
-installer's own hash and the skip list. A warm cache turns the install step into
-a restore, so there is no reason to add an `actions/cache` block of your own.
-The release tag is in the key so that a new `pico-sdk-tools` release is picked
-up rather than masked by a stale cache. Set `cache: false` to opt out.
+The action wraps the install directory in `actions/cache` by default. The key is
+the platform, the SDK version and the newest `pico-sdk-tools` release tag, plus a
+digest of the installer script and the remaining inputs. A warm cache turns the
+install step into a restore, so there is no reason to add an `actions/cache`
+block of your own. Set `cache: false` to opt out.
+
+Two details the key has to respect: the release tag is in it so that a new
+`pico-sdk-tools` release is picked up rather than masked by a stale cache, and
+the rest is digested rather than interpolated because `actions/cache` rejects
+any key containing a comma — which `skip` uses as its separator.
 
 ### Building for several platforms
 
