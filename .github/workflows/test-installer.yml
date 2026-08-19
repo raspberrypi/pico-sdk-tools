@@ -1,0 +1,97 @@
+# Exercises the installer on every supported runner platform.
+name: Test installer
+
+on:
+  push:
+    paths:
+      - 'installer/**'
+      - '!installer/README.md'
+      - '.github/workflows/test-installer.yml'
+  pull_request:
+    paths:
+      - 'installer/**'
+      - '!installer/README.md'
+      - '.github/workflows/test-installer.yml'
+  workflow_dispatch:
+
+jobs:
+  install:
+    name: ${{ matrix.os }} (SDK ${{ matrix.sdk }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-13, windows-latest]
+        sdk: ['2.3.0']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Pico SDK tools
+        id: tools
+        uses: ./installer
+        with:
+          sdk-version: ${{ matrix.sdk }}
+
+      - name: Check the tools are on PATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "installed into ${{ steps.tools.outputs.install-dir }}"
+          arm-none-eabi-gcc --version | head -1
+          riscv32-unknown-elf-gcc --version | head -1
+          picotool version | head -1
+          pioasm --version
+          cmake --version | head -1
+          ninja --version
+          openocd --version 2>&1 | head -1
+          echo "picotool_DIR=$picotool_DIR"
+          echo "pioasm_DIR=$pioasm_DIR"
+          echo "PICO_ARM_TOOLCHAIN_PATH=$PICO_ARM_TOOLCHAIN_PATH"
+          echo "PICO_RISCV_TOOLCHAIN_PATH=$PICO_RISCV_TOOLCHAIN_PATH"
+          # PICO_TOOLCHAIN_PATH must stay unset so the SDK picks the compiler
+          # matching PICO_PLATFORM off PATH, without a "not found there" warning
+          test -z "${PICO_TOOLCHAIN_PATH:-}"
+
+  skip-flags:
+    name: Skip components
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install without RISC-V, OpenOCD, CMake or ninja
+        uses: ./installer
+        with:
+          sdk-version: '2.3.0'
+          skip: riscv-toolchain,openocd,cmake,ninja
+
+      - name: Only the requested tools should be present
+        shell: bash
+        run: |
+          set -euo pipefail
+          arm-none-eabi-gcc --version | head -1
+          picotool version | head -1
+          pioasm --version
+          test ! -d "$HOME/.pico-sdk/openocd" || { echo "openocd was installed"; exit 1; }
+          test ! -d "$HOME/.pico-sdk/ninja"   || { echo "ninja was installed"; exit 1; }
+
+  shell-rc:
+    name: .picorc and shell rc wiring
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install and wire up a throwaway rc file
+        run: |
+          set -euo pipefail
+          python3 installer/install_pico_tools.py 2.3.0 \
+            --platform linux_x64 \
+            --no-arm-toolchain --no-riscv-toolchain --no-openocd --no-cmake --no-ninja \
+            --rc-file "$RUNNER_TEMP/bashrc"
+          # Sourcing twice must not duplicate PATH entries.
+          . "$HOME/.picorc"
+          before=$(echo "$PATH" | tr ':' '\n' | grep -c '.pico-sdk')
+          . "$HOME/.picorc"
+          after=$(echo "$PATH" | tr ':' '\n' | grep -c '.pico-sdk')
+          test "$before" = "$after"
+          grep -q 'pico-sdk-tools installer' "$RUNNER_TEMP/bashrc"
+          picotool version | head -1

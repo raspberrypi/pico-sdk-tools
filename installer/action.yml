@@ -1,0 +1,163 @@
+name: Setup Pico SDK tools
+description: >-
+  Download the Raspberry Pi Pico toolchains and tools into ~/.pico-sdk (the same
+  layout the Pico VS Code extension uses) and put them on PATH for later steps.
+author: Raspberry Pi
+
+branding:
+  icon: cpu
+  color: red
+
+inputs:
+  sdk-version:
+    description: SDK version key, e.g. 2.3.0
+    required: true
+  platform:
+    description: >-
+      Platform key (linux_x64, linux_arm64, darwin_x64, darwin_arm64,
+      win32_x64). Defaults to one derived from runner.os / runner.arch.
+    required: false
+    default: ''
+  install-dir:
+    description: 'Where to install (default: ~/.pico-sdk)'
+    required: false
+    default: ''
+  skip:
+    description: >-
+      Space- or comma-separated components not to download. One or more of:
+      arm-toolchain riscv-toolchain pico-sdk-tools picotool openocd cmake ninja
+    required: false
+    default: ''
+  cache:
+    description: Cache the install directory between runs
+    required: false
+    default: 'true'
+  extension-data-url:
+    description: >-
+      Base URL for versionBundles.json and supportedToolchains.ini. Empty uses
+      the installer's default.
+    required: false
+    default: ''
+  extra-args:
+    description: Additional arguments passed straight through to install_pico_tools.py
+    required: false
+    default: ''
+  github-token:
+    description: >-
+      Token for the GitHub API calls that resolve which release publishes each
+      tool. Defaults to the job's token; unauthenticated requests are limited to
+      60 an hour.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  install-dir:
+    description: Directory the tools were installed into
+    value: ${{ steps.resolve.outputs.install-dir }}
+  platform:
+    description: Platform key that was used
+    value: ${{ steps.resolve.outputs.platform }}
+  cache-hit:
+    description: Whether the install directory was restored from cache
+    value: ${{ steps.cache.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve platform and install directory
+      id: resolve
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        set -euo pipefail
+
+        platform='${{ inputs.platform }}'
+        if [ -z "$platform" ]; then
+          case "${{ runner.os }}/${{ runner.arch }}" in
+            Linux/X64)     platform=linux_x64 ;;
+            Linux/ARM64)   platform=linux_arm64 ;;
+            macOS/ARM64)   platform=darwin_arm64 ;;
+            macOS/X64)     platform=darwin_x64 ;;
+            Windows/X64)   platform=win32_x64 ;;
+            Windows/ARM64) platform=win32_x64 ;;
+            *)
+              echo "::error::Cannot map ${{ runner.os }}/${{ runner.arch }} to a platform key; set the 'platform' input"
+              exit 1
+              ;;
+          esac
+        fi
+
+        install_dir='${{ inputs.install-dir }}'
+        if [ -z "$install_dir" ]; then
+          install_dir="$HOME/.pico-sdk"
+        fi
+
+        # Windows runners ship 'python', not 'python3'.
+        if command -v python3 >/dev/null 2>&1; then
+          python_bin=python3
+        else
+          python_bin=python
+        fi
+
+        skip_args=''
+        for component in $(echo '${{ inputs.skip }}' | tr ',' ' '); do
+          skip_args="$skip_args --no-$component"
+        done
+
+        # The installer resolves each tool to the newest pico-sdk-tools release
+        # that publishes it, so the newest tag has to be part of the cache key;
+        # otherwise a warm cache would pin the job to an older build forever.
+        auth=()
+        if [ -n "${GITHUB_TOKEN:-}" ]; then
+          auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
+        fi
+        tools_release=$(
+          curl -fsSL "${auth[@]}" \
+            https://api.github.com/repos/raspberrypi/pico-sdk-tools/releases/latest \
+            | "$python_bin" -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])' \
+            2>/dev/null
+        ) || tools_release=unresolved
+
+        {
+          echo "platform=$platform"
+          echo "install-dir=$install_dir"
+          echo "python-bin=$python_bin"
+          echo "skip-args=$skip_args"
+          echo "tools-release=$tools_release"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Restore cached tools
+      id: cache
+      if: inputs.cache == 'true'
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.resolve.outputs.install-dir }}
+        key: >-
+          pico-sdk-tools-${{ steps.resolve.outputs.platform }}-${{ inputs.sdk-version }}-${{
+          steps.resolve.outputs.tools-release }}-${{
+          hashFiles(format('{0}/install_pico_tools.py', github.action_path)) }}-${{
+          inputs.skip }}-${{ inputs.extension-data-url }}-${{ inputs.extra-args }}
+
+    - name: Install Pico SDK tools
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        set -euo pipefail
+
+        args=()
+        if [ -n '${{ inputs.extension-data-url }}' ]; then
+          args+=(--extension-data-url '${{ inputs.extension-data-url }}')
+        fi
+
+        "${{ steps.resolve.outputs.python-bin }}" \
+          "${{ github.action_path }}/install_pico_tools.py" \
+          '${{ inputs.sdk-version }}' \
+          --platform '${{ steps.resolve.outputs.platform }}' \
+          --install-dir '${{ steps.resolve.outputs.install-dir }}' \
+          --github-path \
+          --no-picorc \
+          ${{ steps.resolve.outputs.skip-args }} \
+          "${args[@]}" \
+          ${{ inputs.extra-args }}
