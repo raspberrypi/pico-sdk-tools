@@ -32,6 +32,14 @@ jobs:
         with:
           sdk-version: ${{ matrix.sdk }}
 
+      # Only so that `openocd --version` runs below. The action deliberately
+      # does not install these: a hosted runner has no hardware to debug.
+      - name: Install OpenOCD's runtime libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libftdi1-2 libhidapi-hidraw0
+
       - name: Check the tools are on PATH
         shell: bash
         run: |

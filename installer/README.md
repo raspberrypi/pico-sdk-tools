@@ -326,6 +326,11 @@ Notable extras:
 
 Python 3.9 or newer, standard library only. No `pip install` needed.
 
+The action installs no system packages. The one thing that needs them is
+OpenOCD, which on Linux links against `libftdi1` and `libhidapi-hidraw` at
+runtime — `sudo apt install libftdi1-2 libhidapi-hidraw0` if you intend to run
+it.
+
 ## Licence
 
 Apache-2.0, as for the rest of this repository — see [LICENSE](../LICENSE).
