@@ -72,16 +72,11 @@ RISC-V toolchain come from
 [raspberrypi/pico-sdk-tools](https://github.com/raspberrypi/pico-sdk-tools);
 CMake and ninja come from their upstream releases. The SDK is a shallow
 `git clone` at the matching tag followed by `git submodule update --init
---depth 1`, and sets `PICO_SDK_PATH`. Shallow keeps it to about 410 MB rather
-than the 680 MB a full clone takes, since the history is most of the download
-and none of it is needed to build. The trade-off is no usable `git log` and no
-switching to another tag in that checkout - delete it and re-run for a different
-SDK version, or clone it yourself if you want the history.
+--depth 1`, and sets `PICO_SDK_PATH`.
 
 If git is not installed, the SDK is skipped with a warning and the rest still
-installs. A clone that is already there is reused; if it is missing submodules,
-from a plain `git clone` without `--recurse-submodules` say, they are
-initialised in place, without discarding any local changes.
+installs. A clone that is already there is reused; if it is missing submodules
+they are initialised in place, without discarding any local changes.
 
 Components already present are left alone, so re-running is cheap. Use
 `--force` to reinstall.
@@ -101,7 +96,7 @@ Valid components: `sdk`, `arm-toolchain`, `riscv-toolchain`, `pico-sdk-tools`,
 
 ## Version resolution
 
-Two lookups, both live, so the script does not need updating when a new SDK
+Two API lookups, so the script does not need updating when a new SDK
 version is released:
 
 1. **Which versions belong to an SDK.** The Pico VS Code extension publishes one
@@ -112,25 +107,23 @@ version is released:
    the Arm and RISC-V toolchain keys, the picotool version, and the CMake and
    ninja versions for the SDK you asked for. The files come from the repository
    rather than the published site, since that is where the version number came
-   from and the site can lag behind it after a release.
+   from and the site can briefly lag behind it after a release.
 2. **Which release publishes each tool.** The script lists the releases of
    [`raspberrypi/pico-sdk-tools`](https://github.com/raspberrypi/pico-sdk-tools)
    and takes each asset from the newest release that publishes it - so
    `pico-sdk-tools-2.3.0-aarch64-lin.tar.gz` comes from whichever release built
-   it most recently, and the download URL is the one the API reports rather than
-   one assembled by hand. OpenOCD's version is not in `versionBundles.json` at
+   it most recently. OpenOCD's version is not in `versionBundles.json` at
    all, so it is read off the asset name.
 
-That is two GitHub API calls, and the script stops with an explanatory error if
-either fails. Unauthenticated requests are limited to 60 an hour *per IP*, which
-CI runners share, so set `GITHUB_TOKEN` (or `GH_TOKEN`, or pass
-`--github-token`) anywhere it runs unattended. The composite action passes the
-job's token automatically.
+The script stops with an explanatory error if either API call fails.
+Unauthenticated requests are limited to 60 an hour *per IP*, so set
+`GITHUB_TOKEN` (or `GH_TOKEN`, or pass `--github-token`) if you are hitting that
+limit from your IP. The composite action passes the job's token automatically.
 
 To override any of it: `--extension-data-url` pins the metadata to a particular
 published data version, `--bundles` and `--toolchains-ini` read it from local
 files instead, and `--pico-sdk-tools-tag`, `--picotool-tag` and `--openocd-tag`
-pin an individual tool to a named release.
+pin an individual tool to a named pico-sdk-tools release.
 
 ## The `picorc` file
 
@@ -147,10 +140,10 @@ it twice is harmless) and exports:
 | `picotool_DIR`              | So `find_package(picotool)` resolves without a build |
 | `pioasm_DIR`                | So `find_package(pioasm)` resolves without a build |
 | `OPENOCD_SCRIPTS`           | OpenOCD's script search path                      |
-| `CMAKE_GENERATOR`           | `Ninja`, since CMake otherwise defaults to Unix Makefiles on Linux. Only when ninja is installed, and a `-G` on the command line still wins |
+| `CMAKE_GENERATOR`           | `Ninja`, since CMake otherwise defaults to Unix Makefiles on Linux. Only when ninja is installed, and a `-G` on the command line still overrides this |
 | `PICO_SDK_PATH`             | Whenever `~/.pico-sdk/sdk/<version>` exists       |
 
-Note what is **not** set: `PICO_TOOLCHAIN_PATH`. The SDK searches that one
+Note that `PICO_TOOLCHAIN_PATH` is **not** set. The SDK would search that one
 directory first and *only* that directory, so pinning it to the Arm toolchain
 makes every RISC-V configure print
 
@@ -175,10 +168,19 @@ if [ -f "${HOME}/.pico-sdk/picorc" ]; then . "${HOME}/.pico-sdk/picorc"; fi
 # <<< pico-sdk-tools installer <<<
 ```
 
+Prepending is deliberate. A distro `arm-none-eabi-gcc` is usually a different
+release from the one the SDK version pins, and appending would let it win: on
+Raspberry Pi OS, `gcc-arm-none-eabi` is 14.2 where SDK 2.3.0 wants 15.2. The
+same goes for CMake and ninja, so the versions here shadow the system ones. If
+you would rather keep your own, `--no-cmake` and `--no-ninja` leave them out.
+The action gets the same result: the runner prepends whatever it reads from
+`$GITHUB_PATH`, so those directories also come before the system ones.
+
 The block is replaced rather than duplicated on re-runs. The rc file defaults to
 `~/.zshrc` for `darwin_*` platforms and `~/.bashrc` otherwise; override it with
-`--rc-file`, or use `--no-rc-include` to write `picorc` without touching any rc
-file, or `--no-picorc` to skip generating it altogether.
+`--rc-file`, or use `--no-rc-include` to write `picorc` without touching any
+bash/zsh rc file, or `--no-picorc` to skip generating `picorc` altogether.
+
 ## Use from GitHub Actions
 
 This directory is also a composite action, so a workflow can install the tools
@@ -195,8 +197,6 @@ uses: raspberrypi/pico-sdk-tools/installer@<ref>
 
 `<ref>` is a branch name, tag, or full commit SHA - `@main` follows the tip of
 main, a tag such as `@v2.3.0-1` follows a release, and a SHA pins the action.
-Nothing is needed in the calling repository: no vendored script and no checkout
-of this repository, since the runner fetches the action itself.
 
 The runner needs Python 3.9 or newer, which every GitHub-hosted runner already
 has. There are no other dependencies.
@@ -280,10 +280,10 @@ wins if you pass both.
 ### Caching
 
 The action wraps the install directory in `actions/cache` by default. The key is
-the platform, the SDK version and the newest `pico-sdk-tools` release tag, plus a
-digest of the installer script and the remaining inputs. A warm cache turns the
-install step into a restore, so there is no reason to add an `actions/cache`
-block of your own. Set `cache: false` to opt out.
+the platform, the SDK version and the newest `pico-sdk-tools` release tag, plus
+a digest of the installer script and the remaining inputs. A warm cache turns
+the install step into a restore, so there is no reason to add an
+`actions/cache` block of your own. Set `cache: false` to opt out.
 
 Two details the key has to respect: the release tag is in it so that a new
 `pico-sdk-tools` release is picked up rather than masked by a stale cache, and
@@ -314,10 +314,7 @@ jobs:
 ### Worked example: pico-sdk-prebuilts
 
 `raspberrypi/pico-sdk-prebuilts` builds the universal UF2s from
-`pico-examples`. An apt install of CMake and ninja, a hand-rolled
-`actions/cache` block and a `download_extract_tools.sh` unpacking four tarballs
-all collapse into one step, and it needs no `skip` at all now that OpenOCD is
-opt-in:
+`pico-examples`, and uses this installer in one step:
 
 ```yaml
       - name: Install Toolchains & Tools
@@ -341,10 +338,6 @@ opt-in:
             -D PICO_RISCV_TOOLCHAIN_PATH="$PICO_RISCV_TOOLCHAIN_PATH"
           cmake --build build-universal --target hello_universal blink_universal nuke_universal
 ```
-
-The rest of that workflow - the `env:` block of version defaults, the
-`actions/checkout` steps, the artifact upload and the release step - is
-untouched, because the action leaves the job's structure alone.
 
 `picotool_DIR` and `pioasm_DIR` come from the environment the action set up,
 and the compilers are found on `PATH`, so CMake needs no `-D` flags for either.
@@ -375,9 +368,10 @@ usage: install_pico_tools.py [-h] [--platform {linux_x64,linux_arm64,darwin_x64,
 
 Notable extras:
 
-- `--github-path` - also append the `PATH` entries and variables to
-  `$GITHUB_PATH` / `$GITHUB_ENV`. This is how the composite action exports them,
-  since GitHub Actions shells never read `.bashrc`.
+- `--github-path` - also write the `PATH` entries and variables to the
+  `$GITHUB_PATH` / `$GITHUB_ENV` files. This is how the composite action exports
+  them, since GitHub Actions shells never read `.bashrc`. The runner prepends
+  what it reads from `$GITHUB_PATH`, so the effect matches `picorc`.
 - `--dry-run` - print the URLs and the resulting environment, change nothing.
 - `--github-token` - token for the two API calls, if `GITHUB_TOKEN` and
   `GH_TOKEN` are not set.
@@ -390,9 +384,8 @@ Notable extras:
 
 ## Requirements
 
-**Python 3.9 or newer**, standard library only - no `pip install`, no
-virtualenv. Nothing in the script needs anything newer, and it is run under
-3.13 in CI.
+**Python 3.9 or newer**, standard library only - no `pip install` or
+virtualenv needed.
 
 `git` is needed only for cloning the SDK; without it that step is skipped with a
 warning and everything else still installs.
@@ -401,7 +394,3 @@ The action installs no system packages. The one thing that needs them is
 OpenOCD, which on Linux links against `libftdi1` and `libhidapi-hidraw` at
 runtime - `sudo apt install libftdi1-2 libhidapi-hidraw0` if you intend to run
 it.
-
-## Licence
-
-Apache-2.0, as for the rest of this repository - see [LICENSE](../LICENSE).
