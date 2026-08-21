@@ -16,12 +16,21 @@ on:
 
 jobs:
   install:
-    name: ${{ matrix.os }} (SDK ${{ matrix.sdk }})
-    runs-on: ${{ matrix.os }}
+    # join() renders a label list as well as a plain string, so both kinds of
+    # runner get a readable job name.
+    name: ${{ join(matrix.runner, ' ') }} (SDK ${{ matrix.sdk }})
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel, windows-latest]
+        runner:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - macos-latest
+          - macos-15-intel
+          - windows-latest
+          - [self-hosted, linux, arm64, trixie]
+          - [self-hosted, linux, arm64, trixie_desktop]
         sdk: ['2.3.0']
     steps:
       - uses: actions/checkout@v7
@@ -35,8 +44,10 @@ jobs:
 
       # Only so that `openocd --version` runs below. The action deliberately
       # does not install these: a hosted runner has no hardware to debug.
+      # Skipped on self-hosted runners, which already have them and should not
+      # have packages installed on them by a test.
       - name: Install OpenOCD's runtime libraries
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && runner.environment == 'github-hosted'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libftdi1-2 libhidapi-hidraw0
