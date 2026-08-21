@@ -19,7 +19,9 @@ It needs Python 3.9 or newer and nothing else, and `git` if you want it to clone
 the SDK too:
 
 ```bash
-./installer/install_pico_tools.py 2.3.0 --platform linux_arm64
+wget https://raw.githubusercontent.com/raspberrypi/pico-sdk-tools/main/installer/install_pico_tools.py
+chmod +x install_pico_tools.py
+./install_pico_tools.py 2.3.0
 ```
 
 It is also a composite action, so a GitHub Actions job can install the same set

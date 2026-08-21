@@ -9,15 +9,15 @@ Versions are resolved from ``versionBundles.json`` and ``supportedToolchains.ini
 that publishes each asset is found through the GitHub API. Nothing about a
 specific SDK version is hard-coded here, so new releases need no changes.
 
-The target platform is always given explicitly (``--platform``) rather than
-detected, so the same invocation works on a developer machine and in CI.
+The platform is detected, or given explicitly with ``--platform`` -- which CI
+should do, so the same invocation cannot drift with the runner image.
 
 Needs Python 3.9 or newer and the standard library only. ``git`` is used to
 clone the SDK; without it that step is skipped with a warning.
 
 Examples:
-  ./install_pico_tools.py 2.3.0 --platform linux_arm64
-  ./install_pico_tools.py 2.3.0 --platform darwin_arm64 --no-openocd --no-riscv-toolchain
+  ./install_pico_tools.py 2.3.0
+  ./install_pico_tools.py 2.3.0 --no-openocd --no-riscv-toolchain
   ./install_pico_tools.py 2.3.0 --platform linux_x64 --github-path --no-rc-include
 """
 
@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform as platform_module
 import re
 import shutil
 import stat
@@ -193,6 +194,36 @@ def archive_suffix(url: str) -> str:
 # --------------------------------------------------------------------------
 # version resolution (versionBundles.json + supportedToolchains.ini)
 # --------------------------------------------------------------------------
+
+
+def detect_platform() -> str:
+    """Best guess at the platform key for the machine this is running on.
+
+    Deliberately strict: anything not recognised is an error telling the caller
+    to pass --platform, rather than a guess that downloads the wrong binaries.
+    """
+    system = sys.platform
+    machine = platform_module.machine().lower()
+
+    if system == "win32":
+        # There is no Arm build of the Windows tools; Arm64 runs the x64 one.
+        if machine in ("amd64", "x86_64", "arm64", "aarch64"):
+            return "win32_x64"
+    elif system == "darwin":
+        if machine in ("arm64", "aarch64"):
+            return "darwin_arm64"
+        if machine in ("x86_64", "amd64"):
+            return "darwin_x64"
+    elif system.startswith("linux"):
+        if machine in ("x86_64", "amd64"):
+            return "linux_x64"
+        if machine in ("aarch64", "arm64"):
+            return "linux_arm64"
+
+    raise RuntimeError(
+        f"Cannot tell which platform {system}/{machine or '?'} is. "
+        f"Pass --platform with one of: {', '.join(PLATFORMS)}"
+    )
 
 
 def parse_toolchains_ini_text(text: str) -> ConfigParser:
@@ -529,9 +560,8 @@ def main() -> int:
     parser.add_argument("sdk_version", help="SDK version key, e.g. 2.3.0")
     parser.add_argument(
         "--platform",
-        required=True,
         choices=PLATFORMS,
-        help="Target platform key (given explicitly, never detected)",
+        help="Target platform key (default: detected from this machine)",
     )
     parser.add_argument(
         "--install-dir",
@@ -637,7 +667,11 @@ def main() -> int:
     args = parser.parse_args()
 
     sdk_version = args.sdk_version.strip()
-    platform_key = args.platform
+    try:
+        platform_key = args.platform or detect_platform()
+    except RuntimeError as exc:
+        print(exc, file=sys.stderr)
+        return 1
     home = Path.home()
     root = (args.install_dir or (home / ".pico-sdk")).expanduser().resolve()
     token = (

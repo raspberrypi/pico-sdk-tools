@@ -21,24 +21,36 @@ SDK release needs no changes to it. See
 
 ## Quick start
 
-Needs Python 3.9 or newer and nothing else:
+Needs Python 3.9 or newer and nothing else. To download and run it:
 
 ```bash
-./installer/install_pico_tools.py 2.3.0 --platform linux_arm64
+wget https://raw.githubusercontent.com/raspberrypi/pico-sdk-tools/main/installer/install_pico_tools.py
+chmod +x install_pico_tools.py
+./install_pico_tools.py 2.3.0
+```
+
+Then pick up the tools and check one works:
+
+```bash
 exec $SHELL          # or: source ~/.picorc
 picotool version
 ```
 
-The platform is always passed explicitly rather than detected, so the same
-command line works on a developer machine and on a CI runner:
+The platform is detected from the machine. Detection is deliberately strict —
+anything it does not recognise is an error rather than a guess that downloads
+the wrong binaries — so pass `--platform` for anything else, and in CI, where
+pinning it stops the build drifting with the runner image:
 
-| `--platform`   | Target                       |
-| -------------- | ---------------------------- |
-| `linux_x64`    | Linux x86-64                 |
-| `linux_arm64`  | Linux AArch64 (Raspberry Pi) |
-| `darwin_x64`   | macOS Intel                  |
-| `darwin_arm64` | macOS Apple silicon          |
-| `win32_x64`    | Windows x64                  |
+| `--platform`   | Target                       | Detected from                |
+| -------------- | ---------------------------- | ---------------------------- |
+| `linux_x64`    | Linux x86-64                 | `linux` + `x86_64`/`amd64`   |
+| `linux_arm64`  | Linux AArch64 (Raspberry Pi) | `linux` + `aarch64`/`arm64`  |
+| `darwin_x64`   | macOS Intel                  | `darwin` + `x86_64`          |
+| `darwin_arm64` | macOS Apple silicon          | `darwin` + `arm64`           |
+| `win32_x64`    | Windows x64                  | `win32`, any architecture    |
+
+There are no 32-bit builds, so 32-bit Arm Linux is one of the cases that errors
+out.
 
 ## What gets installed where
 
@@ -343,7 +355,7 @@ the environment.
 ## All options
 
 ```
-usage: install_pico_tools.py [-h] --platform {linux_x64,linux_arm64,darwin_x64,darwin_arm64,win32_x64}
+usage: install_pico_tools.py [-h] [--platform {linux_x64,linux_arm64,darwin_x64,darwin_arm64,win32_x64}]
                              [--install-dir INSTALL_DIR]
                              [--no-sdk] [--no-arm-toolchain] [--no-riscv-toolchain]
                              [--no-pico-sdk-tools] [--no-picotool] [--no-openocd]

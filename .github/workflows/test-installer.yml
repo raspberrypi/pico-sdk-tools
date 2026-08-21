@@ -122,9 +122,10 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # No --platform, so detection is covered too
           python3 installer/install_pico_tools.py 2.3.0 \
-            --platform linux_x64 \
-            --no-arm-toolchain --no-riscv-toolchain --no-openocd --no-cmake --no-ninja \
+            --no-sdk --no-arm-toolchain --no-riscv-toolchain \
+            --no-openocd --no-cmake --no-ninja \
             --rc-file "$RUNNER_TEMP/bashrc"
           # Sourcing twice must not duplicate PATH entries.
           . "$HOME/.picorc"
