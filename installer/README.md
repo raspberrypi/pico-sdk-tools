@@ -185,18 +185,21 @@ shell config file, or `--no-picorc` to skip generating `picorc` altogether.
 
 `picorc` is a POSIX shell script, so it only helps the Git Bash and MSYS2 side
 of Windows. For `--platform win32_x64` a `picorc.ps1` is written next to it,
-doing the same job for PowerShell, and included from
-`$PROFILE.CurrentUserAllHosts`:
+doing the same job for PowerShell:
 
 ```powershell
 if (Test-Path -LiteralPath "$HOME/.pico-sdk/picorc.ps1") { . "$HOME/.pico-sdk/picorc.ps1" }
 ```
 
-The profile path is asked of PowerShell itself rather than assembled, so a
-`Documents` folder redirected into OneDrive is handled, and PowerShell 7 and 5.1
-each get their own. Override it with `--ps-profile`. If no `pwsh` or
-`powershell` is on `PATH` the file is still written and the line to add is
-printed instead.
+That line goes into the `CurrentUserAllHosts` profile of **every** PowerShell on
+`PATH`. Windows PowerShell 5.1 (`powershell`) ships with the OS and PowerShell 7
+(`pwsh`) is a separate install, they keep separate profile directories, and a
+machine often has both, so both are wired up.
+
+Each path is asked of that PowerShell rather than assembled, which gets it right
+when `Documents` has been redirected into OneDrive. `--ps-profile` overrides the
+choice and can be repeated. If neither executable is on `PATH`, `picorc.ps1` is
+still written and the line to add is printed instead.
 
 ## Use from GitHub Actions
 
@@ -391,8 +394,8 @@ Notable extras:
   what it reads from `$GITHUB_PATH`, so the effect matches `picorc`.
 - `--dry-run` - print the URLs and the resulting environment, change nothing.
 - `--ps-profile` - PowerShell profile to include `picorc.ps1` from, for
-  `win32_x64`. Defaults to whatever PowerShell reports as
-  `$PROFILE.CurrentUserAllHosts`.
+  `win32_x64`; repeatable. Defaults to the `CurrentUserAllHosts` profile of
+  every PowerShell on `PATH`.
 - `--github-token` - token for the two API calls, if `GITHUB_TOKEN` and
   `GH_TOKEN` are not set.
 - `--bundles` / `--toolchains-ini` - use local copies of the extension data

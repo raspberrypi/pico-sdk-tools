@@ -153,6 +153,32 @@ jobs:
             throw 'PATH entries duplicated'
           }
 
+      # windows-latest has both, and the runner is thrown away afterwards, so
+      # this is the one place the profile wiring can be tested for real.
+      - name: Both PowerShell profiles get the include block
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python installer/install_pico_tools.py 2.3.0 --platform win32_x64 \
+            --no-sdk --no-openocd --no-riscv-toolchain --rc-file "$RUNNER_TEMP/bashrc"
+      - name: Check both profiles
+        shell: pwsh
+        run: |
+          $seen = @()
+          foreach ($exe in 'pwsh', 'powershell') {
+            $p = & $exe -NoProfile -Command '$PROFILE.CurrentUserAllHosts'
+            Write-Host "$exe profile: $p"
+            if (-not (Select-String -Path $p -Pattern 'pico-sdk-tools installer' -Quiet)) {
+              throw "$exe profile has no include block"
+            }
+            $seen += $p
+          }
+          if (($seen | Select-Object -Unique).Count -ne 2) {
+            throw 'expected two distinct profile paths'
+          }
+
   shell-rc:
     name: picorc and shell rc wiring
     runs-on: ubuntu-latest

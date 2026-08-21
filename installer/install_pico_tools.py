@@ -475,23 +475,31 @@ def include_from_rc(rc_file: Path, source_line: str) -> str:
     return "added"
 
 
-def powershell_profile() -> Path | None:
-    """CurrentUserAllHosts profile, as PowerShell itself reports it."""
-    exe = shutil.which("pwsh") or shutil.which("powershell")
-    if not exe:
-        return None
-    try:
-        out = subprocess.run(
-            [exe, "-NoProfile", "-Command", "$PROFILE.CurrentUserAllHosts"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=True,
-        )
-    except (subprocess.SubprocessError, OSError):
-        return None
-    path = out.stdout.strip()
-    return Path(path) if path else None
+def powershell_profiles() -> list[Path]:
+    """CurrentUserAllHosts profile of every PowerShell on PATH.
+
+    PowerShell 7 (``pwsh``) and Windows PowerShell 5.1 (``powershell``) keep
+    separate profile directories, and a Windows machine often has both.
+    """
+    profiles: list[Path] = []
+    for name in ("pwsh", "powershell"):
+        exe = shutil.which(name)
+        if not exe:
+            continue
+        try:
+            out = subprocess.run(
+                [exe, "-NoProfile", "-Command", "$PROFILE.CurrentUserAllHosts"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=True,
+            )
+        except (subprocess.SubprocessError, OSError):
+            continue
+        path = out.stdout.strip()
+        if path and Path(path) not in profiles:
+            profiles.append(Path(path))
+    return profiles
 
 
 def write_github_env(
@@ -666,8 +674,11 @@ def main() -> int:
     parser.add_argument(
         "--ps-profile",
         type=Path,
-        help="PowerShell profile to include picorc.ps1 from "
-        "(default: $PROFILE.CurrentUserAllHosts, asked of PowerShell itself)",
+        action="append",
+        metavar="PATH",
+        help="PowerShell profile to include picorc.ps1 from; repeatable. "
+        "Default: the CurrentUserAllHosts profile of every PowerShell on PATH, "
+        "asked of each one in turn",
     )
     parser.add_argument(
         "--rc-file",
@@ -1092,18 +1103,20 @@ def main() -> int:
             print(f"Wrote {picorc_ps1}")
 
             if not args.no_rc_include:
-                profile = args.ps_profile or powershell_profile()
                 line = (
                     f"if (Test-Path -LiteralPath {ps_path(picorc_ps1, home)}) "
                     f"{{ . {ps_path(picorc_ps1, home)} }}"
                 )
-                if profile is None:
+                profiles = [p.expanduser() for p in (args.ps_profile or [])]
+                if not profiles:
+                    profiles = powershell_profiles()
+                if not profiles:
                     print(
-                        "  no PowerShell found, so its profile was left alone. "
+                        "  no PowerShell found, so no profile was touched. "
                         f"Add this to $PROFILE yourself:\n    {line}"
                     )
-                else:
-                    status = include_from_rc(Path(profile).expanduser(), line)
+                for profile in dict.fromkeys(profiles):
+                    status = include_from_rc(profile, line)
                     print(f"Include block in {profile}: {status}")
 
     if args.github_path:
