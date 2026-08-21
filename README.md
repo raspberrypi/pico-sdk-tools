@@ -15,6 +15,9 @@ The tools currently included are:
 Arm toolchain, CMake and ninja, into `~/.pico-sdk` — the same layout the
 pico-vscode extension uses — and puts them on `PATH`:
 
+It needs Python 3.9 or newer and nothing else, and `git` if you want it to clone
+the SDK too:
+
 ```bash
 ./installer/install_pico_tools.py 2.3.0 --platform linux_arm64
 ```

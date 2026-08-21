@@ -12,6 +12,9 @@ specific SDK version is hard-coded here, so new releases need no changes.
 The target platform is always given explicitly (``--platform``) rather than
 detected, so the same invocation works on a developer machine and in CI.
 
+Needs Python 3.9 or newer and the standard library only. ``git`` is used to
+clone the SDK; without it that step is skipped with a warning.
+
 Examples:
   ./install_pico_tools.py 2.3.0 --platform linux_arm64
   ./install_pico_tools.py 2.3.0 --platform darwin_arm64 --no-openocd --no-riscv-toolchain
@@ -443,7 +446,7 @@ def install_sdk(version: str, target: Path, force: bool, dry_run: bool) -> bool:
         # No --force: this recovers a clone made without submodules, and should
         # not throw away local changes in one that has them.
         if not dry_run:
-            run_git(["submodule", "update", "--init"], cwd=target)
+            run_git(["submodule", "update", "--init", "--depth", "1"], cwd=target)
         return True
 
     if not git:
@@ -462,18 +465,22 @@ def install_sdk(version: str, target: Path, force: bool, dry_run: bool) -> bool:
     if present:
         shutil.rmtree(target)
     target.parent.mkdir(parents=True, exist_ok=True)
+    # Shallow: only the tagged tree is needed to build, and the history is
+    # most of the download.
     run_git(
         [
             "-c",
             "advice.detachedHead=false",
             "clone",
+            "--depth",
+            "1",
             "--branch",
             version,
             PICO_SDK_REPO_URL,
             str(target),
         ]
     )
-    run_git(["submodule", "update", "--init"], cwd=target)
+    run_git(["submodule", "update", "--init", "--depth", "1"], cwd=target)
     print("  installed")
     return True
 

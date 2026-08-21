@@ -21,6 +21,8 @@ SDK release needs no changes to it. See
 
 ## Quick start
 
+Needs Python 3.9 or newer and nothing else:
+
 ```bash
 ./installer/install_pico_tools.py 2.3.0 --platform linux_arm64
 exec $SHELL          # or: source ~/.picorc
@@ -56,9 +58,13 @@ Everything lands under `~/.pico-sdk` (override with `--install-dir`):
 Arm GCC comes from Arm's download server; `pioasm`, `picotool`, OpenOCD and the
 RISC-V toolchain come from
 [raspberrypi/pico-sdk-tools](https://github.com/raspberrypi/pico-sdk-tools);
-CMake and ninja come from their upstream releases. The SDK is a `git clone` at
-the matching tag followed by `git submodule update --init`, the same as the
-extension does, and sets `PICO_SDK_PATH`.
+CMake and ninja come from their upstream releases. The SDK is a shallow
+`git clone` at the matching tag followed by `git submodule update --init
+--depth 1`, and sets `PICO_SDK_PATH`. Shallow keeps it to about 410 MB rather
+than the 680 MB a full clone takes, since the history is most of the download
+and none of it is needed to build. The trade-off is no usable `git log` and no
+switching to another tag in that checkout — delete it and re-run for a different
+SDK version, or clone it yourself if you want the history.
 
 If git is not installed, the SDK is skipped with a warning and the rest still
 installs. A clone that is already there is reused; if it is missing submodules
@@ -235,7 +241,8 @@ would also bloat the cache. Turn it on when you want the action to provide it:
 ```
 
 `PICO_SDK_PATH` is exported whenever an SDK is present in the install
-directory, whether this run cloned it or a previous one did.
+directory, whether this run cloned it or a previous one did. The clone is
+shallow, but still adds roughly 410 MB to the cache entry.
 
 ### OpenOCD
 
@@ -368,7 +375,11 @@ Notable extras:
 
 ## Requirements
 
-Python 3.9 or newer, standard library only. No `pip install` needed.
+**Python 3.9 or newer**, standard library only — no `pip install`, no virtualenv.
+Nothing in the script needs anything newer, and it is run under 3.13 in CI.
+
+`git` is needed only for cloning the SDK; without it that step is skipped with a
+warning and everything else still installs.
 
 The action installs no system packages. The one thing that needs them is
 OpenOCD, which on Linux links against `libftdi1` and `libhidapi-hidraw` at
