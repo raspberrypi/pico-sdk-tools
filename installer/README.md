@@ -44,6 +44,7 @@ Everything lands under `~/.pico-sdk` (override with `--install-dir`):
 
 | Component        | Directory                          | Added to `PATH`                     |
 | ---------------- | ---------------------------------- | ----------------------------------- |
+| pico-sdk         | `sdk/<version>/`                   | —                                   |
 | Arm GCC          | `toolchain/<key>/`                 | `toolchain/<key>/bin`               |
 | RISC-V GCC       | `toolchain/<key>/`                 | `toolchain/<key>/bin`               |
 | `pioasm`         | `tools/<sdk>/pioasm/`              | `tools/<sdk>/pioasm`                |
@@ -55,7 +56,14 @@ Everything lands under `~/.pico-sdk` (override with `--install-dir`):
 Arm GCC comes from Arm's download server; `pioasm`, `picotool`, OpenOCD and the
 RISC-V toolchain come from
 [raspberrypi/pico-sdk-tools](https://github.com/raspberrypi/pico-sdk-tools);
-CMake and ninja come from their upstream releases.
+CMake and ninja come from their upstream releases. The SDK is a `git clone` at
+the matching tag followed by `git submodule update --init`, the same as the
+extension does, and sets `PICO_SDK_PATH`.
+
+If git is not installed, the SDK is skipped with a warning and the rest still
+installs. A clone that is already there is reused; if it is missing submodules
+— a plain `git clone` without `--recurse-submodules`, say — they are initialised
+in place, without discarding any local changes.
 
 Components already present are left alone, so re-running is cheap. Use
 `--force` to reinstall.
@@ -69,7 +77,7 @@ Every component has a `--no-<component>` flag:
     --no-riscv-toolchain --no-openocd --no-cmake --no-ninja
 ```
 
-Valid components: `arm-toolchain`, `riscv-toolchain`, `pico-sdk-tools`,
+Valid components: `sdk`, `arm-toolchain`, `riscv-toolchain`, `pico-sdk-tools`,
 `picotool`, `openocd`, `cmake`, `ninja`. Skipped components are left out of
 `.picorc` too.
 
@@ -119,7 +127,7 @@ already there, so sourcing it twice is harmless) and exports:
 | `picotool_DIR`              | So `find_package(picotool)` resolves without a build |
 | `pioasm_DIR`                | So `find_package(pioasm)` resolves without a build |
 | `OPENOCD_SCRIPTS`           | OpenOCD's script search path                      |
-| `PICO_SDK_PATH`             | Only if `~/.pico-sdk/sdk/<version>` exists        |
+| `PICO_SDK_PATH`             | Whenever `~/.pico-sdk/sdk/<version>` exists       |
 
 Note what is **not** set: `PICO_TOOLCHAIN_PATH`. The SDK searches that one
 directory first and *only* that directory, so pinning it to the Arm toolchain
@@ -204,6 +212,7 @@ leaves no trace in the home directory of a self-hosted runner.
 | `platform`           | from `runner.os`/`arch` | Override to cross-download                          |
 | `install-dir`        | `~/.pico-sdk`           |                                                     |
 | `skip`               | *(none)*                | Space- or comma-separated component names           |
+| `sdk`                | `false`                 | Clone the SDK too — see below                       |
 | `openocd`            | `false`                 | Install OpenOCD too — see below                     |
 | `cache`              | `true`                  | `actions/cache` over the install directory          |
 | `extension-data-url` | newest published        | Pin a different Pico VS Code data version           |
@@ -211,6 +220,22 @@ leaves no trace in the home directory of a self-hosted runner.
 | `extra-args`         | *(none)*                | Passed through to `install_pico_tools.py`           |
 
 Outputs: `install-dir`, `platform`, `cache-hit`.
+
+### The SDK
+
+Cloning the SDK is off by default in the action. A workflow almost always checks
+out its own SDK at a pinned ref, and the clone is a few hundred megabytes, which
+would also bloat the cache. Turn it on when you want the action to provide it:
+
+```yaml
+  - uses: raspberrypi/pico-sdk-tools/installer@main
+    with:
+      sdk-version: '2.3.0'
+      sdk: true
+```
+
+`PICO_SDK_PATH` is exported whenever an SDK is present in the install
+directory, whether this run cloned it or a previous one did.
 
 ### OpenOCD
 
@@ -312,7 +337,7 @@ the environment.
 ```
 usage: install_pico_tools.py [-h] --platform {linux_x64,linux_arm64,darwin_x64,darwin_arm64,win32_x64}
                              [--install-dir INSTALL_DIR]
-                             [--no-arm-toolchain] [--no-riscv-toolchain]
+                             [--no-sdk] [--no-arm-toolchain] [--no-riscv-toolchain]
                              [--no-pico-sdk-tools] [--no-picotool] [--no-openocd]
                              [--no-cmake] [--no-ninja]
                              [--picorc PICORC] [--no-picorc]

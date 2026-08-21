@@ -26,6 +26,7 @@ import os
 import re
 import shutil
 import stat
+import subprocess
 import sys
 import tarfile
 import urllib.error
@@ -39,6 +40,7 @@ GITHUB_API = "https://api.github.com"
 GITHUB_RAW = "https://raw.githubusercontent.com"
 PICO_VSCODE_REPO = "raspberrypi/pico-vscode"
 PICO_SDK_TOOLS_REPO = "raspberrypi/pico-sdk-tools"
+PICO_SDK_REPO_URL = "https://github.com/raspberrypi/pico-sdk.git"
 
 GITHUB_NINJA = "https://github.com/ninja-build/ninja"
 GITHUB_CMAKE = "https://github.com/Kitware/CMake"
@@ -75,6 +77,7 @@ CMAKE_ASSET = {
 
 # --no-<name> flags, in install order.
 COMPONENTS = (
+    "sdk",
     "arm-toolchain",
     "riscv-toolchain",
     "pico-sdk-tools",
@@ -82,6 +85,16 @@ COMPONENTS = (
     "openocd",
     "cmake",
     "ninja",
+)
+
+# Files the SDK's CMakeLists look for, so a clone missing its submodules is
+# recognised rather than half working.
+SDK_SUBMODULE_MARKERS = (
+    "lib/tinyusb/src/portable/raspberrypi/rp2040",
+    "lib/cyw43-driver/src/cyw43.h",
+    "lib/lwip/src/Filelists.cmake",
+    "lib/btstack/src/bluetooth.h",
+    "lib/mbedtls/library/aes.c",
 )
 
 PICORC_BEGIN = "# >>> pico-sdk-tools installer >>>"
@@ -397,6 +410,74 @@ def write_github_env(path_entries: list[Path], env_vars: list[tuple[str, Path]])
 # --------------------------------------------------------------------------
 
 
+def run_git(args: list[str], cwd: Path | None = None) -> None:
+    subprocess.run(["git", *args], cwd=cwd, check=True)
+
+
+def install_sdk(version: str, target: Path, force: bool, dry_run: bool) -> bool:
+    """Clone the SDK at its tag and initialise submodules, as the extension does.
+
+    A missing git is a warning, not an error: the tools are still worth having,
+    and an SDK already sitting in place is fine to reuse.
+    """
+    print("pico-sdk:")
+    print(f"  {PICO_SDK_REPO_URL} at {version}")
+    print(f"  -> {target}")
+
+    git = shutil.which("git")
+    present = target.is_dir() and any(target.iterdir())
+
+    if present and not force:
+        missing = [m for m in SDK_SUBMODULE_MARKERS if not (target / m).exists()]
+        if not missing:
+            print("  already installed, skipping (use --force to reinstall)")
+            return False
+        if not git:
+            print(
+                f"Warning: {target} is missing submodules and git is not "
+                "installed, so they cannot be initialised.",
+                file=sys.stderr,
+            )
+            return False
+        print(f"  already installed, initialising {len(missing)} missing submodules")
+        # No --force: this recovers a clone made without submodules, and should
+        # not throw away local changes in one that has them.
+        if not dry_run:
+            run_git(["submodule", "update", "--init"], cwd=target)
+        return True
+
+    if not git:
+        print(
+            "Warning: git is not installed and no SDK is present at "
+            f"{target}, so the SDK was not cloned. Install git and re-run, or "
+            "put the SDK there yourself.",
+            file=sys.stderr,
+        )
+        return False
+
+    if dry_run:
+        print("  would clone and initialise submodules")
+        return False
+
+    if present:
+        shutil.rmtree(target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    run_git(
+        [
+            "-c",
+            "advice.detachedHead=false",
+            "clone",
+            "--branch",
+            version,
+            PICO_SDK_REPO_URL,
+            str(target),
+        ]
+    )
+    run_git(["submodule", "update", "--init"], cwd=target)
+    print("  installed")
+    return True
+
+
 def install_archive(
     label: str,
     url: str,
@@ -455,7 +536,7 @@ def main() -> int:
             f"--no-{component}",
             dest=f"skip_{component.replace('-', '_')}",
             action="store_true",
-            help=f"Do not download {component}",
+            help=f"Do not install {component}",
         )
 
     parser.add_argument(
@@ -678,6 +759,7 @@ def main() -> int:
     print()
     print(f"SDK {sdk_version}  platform {platform_key}")
     print(f"  install dir      {root}")
+    summarise("pico-sdk", sdk_version)
     summarise("arm toolchain", arm_key)
     summarise("riscv toolchain", riscv_key)
     summarise("pioasm", sdk_version, "pico-sdk-tools")
@@ -694,6 +776,7 @@ def main() -> int:
     if not args.dry_run:
         cache_dir.mkdir(parents=True, exist_ok=True)
 
+    sdk_dir = root / "sdk" / sdk_version
     tools_dir = root / "tools" / sdk_version
     picotool_dir = root / "picotool" / picotool_version
     openocd_dir = root / "openocd" / openocd_version
@@ -703,6 +786,10 @@ def main() -> int:
     riscv_dir = root / "toolchain" / riscv_key
 
     try:
+        # ---- SDK ------------------------------------------------------------
+        if not skip["sdk"]:
+            install_sdk(sdk_version, sdk_dir, args.force, args.dry_run)
+
         # ---- Arm toolchain ------------------------------------------------
         if not skip["arm-toolchain"]:
             if not ini.has_section(arm_key):
@@ -804,6 +891,9 @@ def main() -> int:
     except urllib.error.HTTPError as exc:
         print(f"  HTTP {exc.code}: {exc.reason}", file=sys.stderr)
         return 1
+    except subprocess.CalledProcessError as exc:
+        print(f"  git failed: {' '.join(exc.cmd)}", file=sys.stderr)
+        return 1
     except (OSError, RuntimeError) as exc:
         print(f"  Error: {exc}", file=sys.stderr)
         return 1
@@ -838,7 +928,6 @@ def main() -> int:
     if not skip["ninja"]:
         path_entries.append(ninja_dir)
 
-    sdk_dir = root / "sdk" / sdk_version
     if sdk_dir.is_dir():
         env_vars.insert(0, ("PICO_SDK_PATH", sdk_dir))
 

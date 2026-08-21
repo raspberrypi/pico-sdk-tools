@@ -88,6 +88,28 @@ jobs:
           test ! -d "$HOME/.pico-sdk/openocd" || { echo "openocd was installed"; exit 1; }
           test ! -d "$HOME/.pico-sdk/ninja"   || { echo "ninja was installed"; exit 1; }
 
+  sdk:
+    name: Clone the SDK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install the SDK only
+        uses: ./installer
+        with:
+          sdk-version: '2.3.0'
+          sdk: true
+          skip: arm-toolchain,riscv-toolchain,pico-sdk-tools,picotool,cmake,ninja
+          cache: false
+
+      - name: The SDK and its submodules should be there
+        run: |
+          set -euo pipefail
+          test -f "$PICO_SDK_PATH/pico_sdk_init.cmake"
+          test -f "$PICO_SDK_PATH/lib/tinyusb/src/portable/raspberrypi/rp2040/dcd_rp2040.c"
+          test -f "$PICO_SDK_PATH/lib/mbedtls/library/aes.c"
+          git -C "$PICO_SDK_PATH" describe --tags
+
   shell-rc:
     name: .picorc and shell rc wiring
     runs-on: ubuntu-latest

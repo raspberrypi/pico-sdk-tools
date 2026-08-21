@@ -28,6 +28,13 @@ inputs:
       arm-toolchain riscv-toolchain pico-sdk-tools picotool openocd cmake ninja
     required: false
     default: ''
+  sdk:
+    description: >-
+      Clone the SDK into the install directory as well. Off by default: a
+      workflow usually checks out its own SDK at a pinned ref, and the clone is
+      a few hundred MB. Needs git on PATH.
+    required: false
+    default: 'false'
   openocd:
     description: >-
       Install OpenOCD as well. Off by default, since a hosted runner has nothing
@@ -111,6 +118,9 @@ runs:
         for component in $(echo '${{ inputs.skip }}' | tr ',' ' '); do
           skip_args="$skip_args --no-$component"
         done
+        if [ '${{ inputs.sdk }}' != 'true' ]; then
+          skip_args="$skip_args --no-sdk"
+        fi
         if [ '${{ inputs.openocd }}' != 'true' ]; then
           skip_args="$skip_args --no-openocd"
         fi
@@ -134,6 +144,7 @@ runs:
           "$python_bin" -c 'import hashlib,sys; h=hashlib.sha256(); h.update(open(sys.argv[1],"rb").read()); h.update("\0".join(sys.argv[2:]).encode()); print(h.hexdigest()[:16])' \
             "${{ github.action_path }}/install_pico_tools.py" \
             '${{ inputs.skip }}' \
+            '${{ inputs.sdk }}' \
             '${{ inputs.openocd }}' \
             '${{ inputs.extension-data-url }}' \
             '${{ inputs.extra-args }}'
