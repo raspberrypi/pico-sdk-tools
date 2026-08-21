@@ -179,7 +179,24 @@ The action gets the same result: the runner prepends whatever it reads from
 The block is replaced rather than duplicated on re-runs. The rc file defaults to
 `~/.zshrc` for `darwin_*` platforms and `~/.bashrc` otherwise; override it with
 `--rc-file`, or use `--no-rc-include` to write `picorc` without touching any
-bash/zsh rc file, or `--no-picorc` to skip generating `picorc` altogether.
+shell config file, or `--no-picorc` to skip generating `picorc` altogether.
+
+### On Windows
+
+`picorc` is a POSIX shell script, so it only helps the Git Bash and MSYS2 side
+of Windows. For `--platform win32_x64` a `picorc.ps1` is written next to it,
+doing the same job for PowerShell, and included from
+`$PROFILE.CurrentUserAllHosts`:
+
+```powershell
+if (Test-Path -LiteralPath "$HOME/.pico-sdk/picorc.ps1") { . "$HOME/.pico-sdk/picorc.ps1" }
+```
+
+The profile path is asked of PowerShell itself rather than assembled, so a
+`Documents` folder redirected into OneDrive is handled, and PowerShell 7 and 5.1
+each get their own. Override it with `--ps-profile`. If no `pwsh` or
+`powershell` is on `PATH` the file is still written and the line to add is
+printed instead.
 
 ## Use from GitHub Actions
 
@@ -373,6 +390,9 @@ Notable extras:
   them, since GitHub Actions shells never read `.bashrc`. The runner prepends
   what it reads from `$GITHUB_PATH`, so the effect matches `picorc`.
 - `--dry-run` - print the URLs and the resulting environment, change nothing.
+- `--ps-profile` - PowerShell profile to include `picorc.ps1` from, for
+  `win32_x64`. Defaults to whatever PowerShell reports as
+  `$PROFILE.CurrentUserAllHosts`.
 - `--github-token` - token for the two API calls, if `GITHUB_TOKEN` and
   `GH_TOKEN` are not set.
 - `--bundles` / `--toolchains-ini` - use local copies of the extension data

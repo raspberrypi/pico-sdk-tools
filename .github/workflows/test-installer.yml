@@ -122,6 +122,37 @@ jobs:
           test -f "$PICO_SDK_PATH/lib/mbedtls/library/aes.c"
           git -C "$PICO_SDK_PATH" describe --tags
 
+  powershell:
+    name: picorc.ps1 on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install, leaving the profile alone
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python installer/install_pico_tools.py 2.3.0 --platform win32_x64 \
+            --no-sdk --no-openocd --no-riscv-toolchain --no-rc-include
+
+      - name: Dot-source it and check the tools resolve
+        shell: pwsh
+        run: |
+          . "$HOME/.pico-sdk/picorc.ps1"
+          foreach ($t in 'arm-none-eabi-gcc', 'picotool', 'pioasm', 'cmake', 'ninja') {
+            $c = Get-Command $t -ErrorAction Stop
+            Write-Host "$t -> $($c.Source)"
+          }
+          if ($env:CMAKE_GENERATOR -ne 'Ninja') { throw 'CMAKE_GENERATOR not set' }
+          # Sourcing twice must not duplicate PATH entries
+          $one = ($env:PATH -split [IO.Path]::PathSeparator).Count
+          . "$HOME/.pico-sdk/picorc.ps1"
+          if (($env:PATH -split [IO.Path]::PathSeparator).Count -ne $one) {
+            throw 'PATH entries duplicated'
+          }
+
   shell-rc:
     name: picorc and shell rc wiring
     runs-on: ubuntu-latest
