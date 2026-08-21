@@ -61,6 +61,7 @@ jobs:
           echo "picotool_DIR=$picotool_DIR"
           echo "pioasm_DIR=$pioasm_DIR"
           echo "PICO_ARM_TOOLCHAIN_PATH=$PICO_ARM_TOOLCHAIN_PATH"
+          test "$CMAKE_GENERATOR" = Ninja
           echo "PICO_RISCV_TOOLCHAIN_PATH=$PICO_RISCV_TOOLCHAIN_PATH"
           # PICO_TOOLCHAIN_PATH must stay unset so the SDK picks the compiler
           # matching PICO_PLATFORM off PATH, without a "not found there" warning

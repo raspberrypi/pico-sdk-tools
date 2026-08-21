@@ -298,9 +298,9 @@ def find_release_asset(
 # --------------------------------------------------------------------------
 
 
-def shell_path(path: Path, home: Path) -> str:
+def shell_path(path: str | Path, home: Path) -> str:
     """Double-quoted shell literal, using ${HOME} where possible."""
-    text = path.as_posix()
+    text = path.as_posix() if isinstance(path, Path) else str(path)
     home_posix = home.as_posix()
     prefix = ""
     if text == home_posix:
@@ -322,7 +322,7 @@ def write_picorc(
     picorc: Path,
     home: Path,
     path_entries: list[Path],
-    env_vars: list[tuple[str, Path]],
+    env_vars: list[tuple[str, str | Path]],
     sdk_version: str,
     platform_key: str,
 ) -> None:
@@ -389,7 +389,9 @@ def include_from_rc(rc_file: Path, picorc: Path, home: Path) -> str:
     return "added"
 
 
-def write_github_env(path_entries: list[Path], env_vars: list[tuple[str, Path]]) -> None:
+def write_github_env(
+    path_entries: list[Path], env_vars: list[tuple[str, str | Path]]
+) -> None:
     github_path = os.environ.get("GITHUB_PATH")
     github_env = os.environ.get("GITHUB_ENV")
     if not github_path or not github_env:
@@ -910,7 +912,7 @@ def main() -> int:
 
     # ---- environment ------------------------------------------------------
     path_entries: list[Path] = []
-    env_vars: list[tuple[str, Path]] = []
+    env_vars: list[tuple[str, str | Path]] = []
 
     if not skip["picotool"]:
         path_entries.append(picotool_dir / "picotool")
@@ -934,6 +936,9 @@ def main() -> int:
         path_entries.append(cmake_dir / "bin")
     if not skip["ninja"]:
         path_entries.append(ninja_dir)
+        # CMake picks Unix Makefiles by default; ninja is what we just installed
+        # and what the extension configures. A -G on the command line still wins.
+        env_vars.append(("CMAKE_GENERATOR", "Ninja"))
 
     if sdk_dir.is_dir():
         env_vars.insert(0, ("PICO_SDK_PATH", sdk_dir))

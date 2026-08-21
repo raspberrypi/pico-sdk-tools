@@ -133,6 +133,7 @@ already there, so sourcing it twice is harmless) and exports:
 | `picotool_DIR`              | So `find_package(picotool)` resolves without a build |
 | `pioasm_DIR`                | So `find_package(pioasm)` resolves without a build |
 | `OPENOCD_SCRIPTS`           | OpenOCD's script search path                      |
+| `CMAKE_GENERATOR`           | `Ninja`, since CMake otherwise defaults to Unix Makefiles on Linux. Only when ninja is installed, and a `-G` on the command line still wins |
 | `PICO_SDK_PATH`             | Whenever `~/.pico-sdk/sdk/<version>` exists       |
 
 Note what is **not** set: `PICO_TOOLCHAIN_PATH`. The SDK searches that one
