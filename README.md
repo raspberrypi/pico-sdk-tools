@@ -12,11 +12,10 @@ The tools currently included are:
 ## Installing the tools
 
 [`installer/`](installer) holds a script that downloads these tools, plus the
-Arm toolchain, CMake and ninja, into `~/.pico-sdk` — the same layout the
-pico-vscode extension uses — and puts them on `PATH`:
+Arm toolchain, CMake and ninja, into `~/.pico-sdk` - the same layout the
+pico-vscode extension uses - and puts them on `PATH`:
 
-It needs Python 3.9 or newer and nothing else, and `git` if you want it to clone
-the SDK too:
+It needs Python 3.9 or newer, and `git` if you want it to clone the SDK too:
 
 ```bash
 wget https://raw.githubusercontent.com/raspberrypi/pico-sdk-tools/main/installer/install_pico_tools.py

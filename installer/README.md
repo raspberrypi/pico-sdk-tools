@@ -1,8 +1,8 @@
 # Pico SDK tools installer
 
 A single Python script that downloads the Raspberry Pi Pico toolchains and tools
-into `~/.pico-sdk` — the same locations and layout the
-[Pico VS Code extension](https://github.com/raspberrypi/pico-vscode) uses — then
+into `~/.pico-sdk` - the same locations and layout the
+[Pico VS Code extension](https://github.com/raspberrypi/pico-vscode) uses - then
 writes a `.picorc` that puts them all on `PATH` and includes it from your shell
 rc file.
 
@@ -21,7 +21,7 @@ SDK release needs no changes to it. See
 
 ## Quick start
 
-Needs Python 3.9 or newer and nothing else. To download and run it:
+Needs Python 3.9 or newer. To download and run it:
 
 ```bash
 wget https://raw.githubusercontent.com/raspberrypi/pico-sdk-tools/main/installer/install_pico_tools.py
@@ -36,9 +36,9 @@ exec $SHELL          # or: source ~/.picorc
 picotool version
 ```
 
-The platform is detected from the machine. Detection is deliberately strict —
+The platform is detected from the machine. Detection is deliberately strict -
 anything it does not recognise is an error rather than a guess that downloads
-the wrong binaries — so pass `--platform` for anything else, and in CI, where
+the wrong binaries - so pass `--platform` for anything else, and in CI, where
 pinning it stops the build drifting with the runner image:
 
 | `--platform`   | Target                       | Detected from                |
@@ -58,7 +58,7 @@ Everything lands under `~/.pico-sdk` (override with `--install-dir`):
 
 | Component        | Directory                          | Added to `PATH`                     |
 | ---------------- | ---------------------------------- | ----------------------------------- |
-| pico-sdk         | `sdk/<version>/`                   | —                                   |
+| pico-sdk         | `sdk/<version>/`                   | -                                   |
 | Arm GCC          | `toolchain/<key>/`                 | `toolchain/<key>/bin`               |
 | RISC-V GCC       | `toolchain/<key>/`                 | `toolchain/<key>/bin`               |
 | `pioasm`         | `tools/<sdk>/pioasm/`              | `tools/<sdk>/pioasm`                |
@@ -75,13 +75,13 @@ CMake and ninja come from their upstream releases. The SDK is a shallow
 --depth 1`, and sets `PICO_SDK_PATH`. Shallow keeps it to about 410 MB rather
 than the 680 MB a full clone takes, since the history is most of the download
 and none of it is needed to build. The trade-off is no usable `git log` and no
-switching to another tag in that checkout — delete it and re-run for a different
+switching to another tag in that checkout - delete it and re-run for a different
 SDK version, or clone it yourself if you want the history.
 
 If git is not installed, the SDK is skipped with a warning and the rest still
-installs. A clone that is already there is reused; if it is missing submodules
-— a plain `git clone` without `--recurse-submodules`, say — they are initialised
-in place, without discarding any local changes.
+installs. A clone that is already there is reused; if it is missing submodules,
+from a plain `git clone` without `--recurse-submodules` say, they are
+initialised in place, without discarding any local changes.
 
 Components already present are left alone, so re-running is cheap. Use
 `--force` to reinstall.
@@ -115,7 +115,7 @@ version is released:
    from and the site can lag behind it after a release.
 2. **Which release publishes each tool.** The script lists the releases of
    [`raspberrypi/pico-sdk-tools`](https://github.com/raspberrypi/pico-sdk-tools)
-   and takes each asset from the newest release that publishes it — so
+   and takes each asset from the newest release that publishes it - so
    `pico-sdk-tools-2.3.0-aarch64-lin.tar.gz` comes from whichever release built
    it most recently, and the download URL is the one the API reports rather than
    one assembled by hand. OpenOCD's version is not in `versionBundles.json` at
@@ -157,12 +157,12 @@ CMake Warning: PICO_TOOLCHAIN_PATH specified (.../toolchain/15_2_Rel1),
 but not found there
 ```
 
-before falling back to `PATH` and finding the right compiler anyway. Since both
-toolchain `bin` directories are on `PATH` and the SDK looks for a specific
-triple — `arm-none-eabi-gcc`, or whichever `riscv32-*-gcc` the SDK version pins
-— leaving `PICO_TOOLCHAIN_PATH` unset lets it pick the correct one for whichever
-`PICO_PLATFORM` you asked for, with no warning and nothing to change between
-Arm and RISC-V builds.
+before falling back to `PATH` and finding the right compiler anyway. Both
+toolchain `bin` directories are on `PATH`, and the SDK looks for a specific
+triple (`arm-none-eabi-gcc`, or whichever `riscv32-*-gcc` the SDK version
+pins), so leaving `PICO_TOOLCHAIN_PATH` unset lets it pick the correct one for
+whichever `PICO_PLATFORM` you asked for, with no warning and nothing to change
+between Arm and RISC-V builds.
 
 The installer then adds a marked block to your shell rc file that sources it:
 
@@ -191,7 +191,7 @@ callers name the directory too:
 uses: raspberrypi/pico-sdk-tools/installer@<ref>
 ```
 
-`<ref>` is a branch name, tag, or full commit SHA — `@main` follows the tip of
+`<ref>` is a branch name, tag, or full commit SHA - `@main` follows the tip of
 main, a tag such as `@v2.3.0-1` follows a release, and a SHA pins the action.
 Nothing is needed in the calling repository: no vendored script and no checkout
 of this repository, since the runner fetches the action itself.
@@ -220,7 +220,7 @@ the compilers, `picotool`, `pioasm`, `cmake` and `ninja` are on `PATH`, and
 `picotool_DIR`, `pioasm_DIR`, `PICO_ARM_TOOLCHAIN_PATH`,
 `PICO_RISCV_TOOLCHAIN_PATH` and `OPENOCD_SCRIPTS` are in the environment. It
 exports them through `$GITHUB_PATH` and `$GITHUB_ENV` and writes no `.picorc`
-at all, since Actions shells never read a shell rc file — which also means it
+at all, since Actions shells never read a shell rc file - which also means it
 leaves no trace in the home directory of a self-hosted runner.
 
 ### Inputs
@@ -231,8 +231,8 @@ leaves no trace in the home directory of a self-hosted runner.
 | `platform`           | from `runner.os`/`arch` | Override to cross-download                          |
 | `install-dir`        | `~/.pico-sdk`           |                                                     |
 | `skip`               | *(none)*                | Space- or comma-separated component names           |
-| `sdk`                | `false`                 | Clone the SDK too — see below                       |
-| `openocd`            | `false`                 | Install OpenOCD too — see below                     |
+| `sdk`                | `false`                 | Clone the SDK too - see below                       |
+| `openocd`            | `false`                 | Install OpenOCD too - see below                     |
 | `cache`              | `true`                  | `actions/cache` over the install directory          |
 | `extension-data-url` | newest published        | Pin a different Pico VS Code data version           |
 | `github-token`       | `${{ github.token }}`   | Used for the API calls that resolve tool releases   |
@@ -286,7 +286,7 @@ block of your own. Set `cache: false` to opt out.
 Two details the key has to respect: the release tag is in it so that a new
 `pico-sdk-tools` release is picked up rather than masked by a stale cache, and
 the rest is digested rather than interpolated because `actions/cache` rejects
-any key containing a comma — which `skip` uses as its separator.
+any key containing a comma - which `skip` uses as its separator.
 
 ### Building for several platforms
 
@@ -340,8 +340,8 @@ opt-in:
           cmake --build build-universal --target hello_universal blink_universal nuke_universal
 ```
 
-The rest of that workflow — the `env:` block of version defaults, the
-`actions/checkout` steps, the artifact upload and the release step — is
+The rest of that workflow - the `env:` block of version defaults, the
+`actions/checkout` steps, the artifact upload and the release step - is
 untouched, because the action leaves the job's structure alone.
 
 `picotool_DIR` and `pioasm_DIR` come from the environment the action set up,
@@ -373,32 +373,33 @@ usage: install_pico_tools.py [-h] [--platform {linux_x64,linux_arm64,darwin_x64,
 
 Notable extras:
 
-- `--github-path` — also append the `PATH` entries and variables to
+- `--github-path` - also append the `PATH` entries and variables to
   `$GITHUB_PATH` / `$GITHUB_ENV`. This is how the composite action exports them,
   since GitHub Actions shells never read `.bashrc`.
-- `--dry-run` — print the URLs and the resulting environment, change nothing.
-- `--github-token` — token for the two API calls, if `GITHUB_TOKEN` and
+- `--dry-run` - print the URLs and the resulting environment, change nothing.
+- `--github-token` - token for the two API calls, if `GITHUB_TOKEN` and
   `GH_TOKEN` are not set.
-- `--bundles` / `--toolchains-ini` — use local copies of the extension data
+- `--bundles` / `--toolchains-ini` - use local copies of the extension data
   instead of fetching them. Passing both skips the data-version lookup entirely.
-- `--pico-sdk-tools-tag` / `--picotool-tag` / `--openocd-tag` — take one tool
+- `--pico-sdk-tools-tag` / `--picotool-tag` / `--openocd-tag` - take one tool
   from a named `pico-sdk-tools` release instead of the newest one publishing it.
-- `--openocd-version` — install a specific OpenOCD version rather than whichever
+- `--openocd-version` - install a specific OpenOCD version rather than whichever
   the newest release ships.
 
 ## Requirements
 
-**Python 3.9 or newer**, standard library only — no `pip install`, no virtualenv.
-Nothing in the script needs anything newer, and it is run under 3.13 in CI.
+**Python 3.9 or newer**, standard library only - no `pip install`, no
+virtualenv. Nothing in the script needs anything newer, and it is run under
+3.13 in CI.
 
 `git` is needed only for cloning the SDK; without it that step is skipped with a
 warning and everything else still installs.
 
 The action installs no system packages. The one thing that needs them is
 OpenOCD, which on Linux links against `libftdi1` and `libhidapi-hidraw` at
-runtime — `sudo apt install libftdi1-2 libhidapi-hidraw0` if you intend to run
+runtime - `sudo apt install libftdi1-2 libhidapi-hidraw0` if you intend to run
 it.
 
 ## Licence
 
-Apache-2.0, as for the rest of this repository — see [LICENSE](../LICENSE).
+Apache-2.0, as for the rest of this repository - see [LICENSE](../LICENSE).
