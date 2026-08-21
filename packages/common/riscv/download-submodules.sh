@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# This script is unused, but kept in case it is needed in the future
+
 # Populate the sourceware.org-hosted submodules of riscv-gnu-toolchain from
 # release tarballs on the UK Mirror Service, for use while sourceware.org is
 # unreachable.  Run from the build directory, before apply-patches.sh, as the

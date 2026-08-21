@@ -55,10 +55,6 @@ done < <(echo "$repos")
 
 
 cd $builddir
-if [[ "$SKIP_RISCV" != 1 ]]; then
-    # Workaround for sourceware.org sometimes not working
-    ../packages/common/riscv/download-submodules.sh
-fi
 
 # Apply any patches
 ../packages/common/apply-patches.sh

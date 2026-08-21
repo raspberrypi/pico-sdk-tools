@@ -224,11 +224,6 @@ if (-not $SkipDownload) {
   msys "pacboy -S --noconfirm --needed cmake:p ninja:p toolchain:p libusb:p hidapi:p libslirp:p"
 }
 
-if (-not (Test-Path ".\build\riscv-install\$msysEnv") -and ($env:SKIP_RISCV -ne '1')) {
-  # Workaround for sourceware.org sometimes not working
-  msys "cd build && ../packages/common/riscv/download-submodules.sh"
-}
-
 # Apply any patches, including the Windows only ones
 msys "cd build && ../packages/common/apply-patches.sh ../packages/windows/patches"
 
