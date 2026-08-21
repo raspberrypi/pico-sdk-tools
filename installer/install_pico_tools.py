@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Install the Raspberry Pi Pico toolchains and tools into the same locations the
-Pico VS Code extension uses (``~/.pico-sdk``), then write a ``.picorc`` that puts
-them all on ``PATH`` and include it from the user's shell rc file.
+Pico VS Code extension uses (``~/.pico-sdk``), then write a ``picorc`` there that
+puts them all on ``PATH``, and include it from the user's shell rc file.
 
 Versions are resolved from ``versionBundles.json`` and ``supportedToolchains.ini``
 -- the same inputs the VS Code extension uses -- and the pico-sdk-tools release
@@ -389,7 +389,7 @@ def write_picorc(
 
 
 def include_from_rc(rc_file: Path, picorc: Path, home: Path) -> str:
-    """Add (or refresh) the block that sources .picorc. Returns a status word."""
+    """Add (or refresh) the block that sources picorc. Returns a status word."""
     block = "\n".join(
         [
             PICORC_BEGIN,
@@ -553,7 +553,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Download the Pico toolchains and tools into ~/.pico-sdk and set up "
-            "a .picorc that adds them to PATH."
+            "a picorc that adds them to PATH."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -582,24 +582,24 @@ def main() -> int:
         "--picorc",
         type=Path,
         default=None,
-        help="Path to the generated rc fragment (default: ~/.picorc)",
+        help="Path to the generated rc fragment (default: <install-dir>/picorc)",
     )
     parser.add_argument(
         "--no-picorc",
         action="store_true",
-        help="Do not write the .picorc file",
+        help="Do not write the picorc file",
     )
     parser.add_argument(
         "--rc-file",
         type=Path,
         default=None,
-        help="Shell rc file to include .picorc from "
+        help="Shell rc file to include picorc from "
         "(default: ~/.zshrc on darwin_*, otherwise ~/.bashrc)",
     )
     parser.add_argument(
         "--no-rc-include",
         action="store_true",
-        help="Write .picorc but do not modify the shell rc file",
+        help="Write picorc but do not modify the shell rc file",
     )
     parser.add_argument(
         "--github-path",
@@ -986,7 +986,7 @@ def main() -> int:
             print(f"  {name}={value}")
         return 0
 
-    picorc = (args.picorc or (home / ".picorc")).expanduser()
+    picorc = (args.picorc or (root / "picorc")).expanduser()
     if not args.no_picorc:
         write_picorc(picorc, home, path_entries, env_vars, sdk_version, platform_key)
         print(f"Wrote {picorc}")

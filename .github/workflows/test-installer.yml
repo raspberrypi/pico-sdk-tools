@@ -123,7 +123,7 @@ jobs:
           git -C "$PICO_SDK_PATH" describe --tags
 
   shell-rc:
-    name: .picorc and shell rc wiring
+    name: picorc and shell rc wiring
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -139,9 +139,9 @@ jobs:
             --no-openocd --no-cmake --no-ninja \
             --rc-file "$RUNNER_TEMP/bashrc"
           # Sourcing twice must not duplicate PATH entries.
-          . "$HOME/.picorc"
+          . "$HOME/.pico-sdk/picorc"
           before=$(echo "$PATH" | tr ':' '\n' | grep -c '.pico-sdk')
-          . "$HOME/.picorc"
+          . "$HOME/.pico-sdk/picorc"
           after=$(echo "$PATH" | tr ':' '\n' | grep -c '.pico-sdk')
           test "$before" = "$after"
           grep -q 'pico-sdk-tools installer' "$RUNNER_TEMP/bashrc"
