@@ -153,7 +153,9 @@ def _extract_zip(archive: Path, target: Path) -> None:
 
 def _extract_tar(archive: Path, target: Path) -> None:
     with tarfile.open(archive, "r:*") as tf:
-        if hasattr(tarfile, "data_filter"):  # Python >= 3.12
+        # Added in 3.12 and backported as a security fix, so feature-detect
+        # rather than checking the version, as the tarfile docs advise.
+        if hasattr(tarfile, "data_filter"):
             tf.extractall(target, filter="tar")
         else:
             tf.extractall(target)
@@ -330,6 +332,17 @@ def find_release_asset(
 # --------------------------------------------------------------------------
 
 
+def write_text_lf(path: Path, text: str) -> None:
+    """Write text with LF endings on every platform.
+
+    Path.write_text translates to CRLF on Windows, and bash rejects a sourced
+    file with CRLF line endings.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+
+
 def shell_path(path: str | Path, home: Path) -> str:
     """Double-quoted shell literal, using ${HOME} where possible."""
     text = path.as_posix() if isinstance(path, Path) else str(path)
@@ -400,8 +413,7 @@ def write_picorc_ps1(
         lines.append(f"$env:{name} = {ps_path(value, home)}")
     lines.append("")
 
-    picorc_ps1.parent.mkdir(parents=True, exist_ok=True)
-    picorc_ps1.write_text("\n".join(lines), encoding="utf-8")
+    write_text_lf(picorc_ps1, "\n".join(lines))
 
 
 def write_picorc(
@@ -439,8 +451,7 @@ def write_picorc(
         lines.append(f"export {name}={shell_path(value, home)}")
     lines.append("")
 
-    picorc.parent.mkdir(parents=True, exist_ok=True)
-    picorc.write_text("\n".join(lines), encoding="utf-8")
+    write_text_lf(picorc, "\n".join(lines))
 
 
 def include_from_rc(rc_file: Path, source_line: str) -> str:
@@ -462,7 +473,7 @@ def include_from_rc(rc_file: Path, source_line: str) -> str:
         updated = existing[:start] + block + existing[end:]
         if updated == existing:
             return "already up to date"
-        rc_file.write_text(updated, encoding="utf-8")
+        write_text_lf(rc_file, updated)
         return "updated"
 
     prefix = existing
@@ -470,8 +481,7 @@ def include_from_rc(rc_file: Path, source_line: str) -> str:
         prefix += "\n"
     if prefix:
         prefix += "\n"
-    rc_file.parent.mkdir(parents=True, exist_ok=True)
-    rc_file.write_text(prefix + block + "\n", encoding="utf-8")
+    write_text_lf(rc_file, prefix + block + "\n")
     return "added"
 
 
@@ -513,10 +523,10 @@ def write_github_env(
             file=sys.stderr,
         )
         return
-    with open(github_path, "a", encoding="utf-8") as handle:
+    with open(github_path, "a", encoding="utf-8", newline="\n") as handle:
         for entry in path_entries:
             handle.write(f"{entry}\n")
-    with open(github_env, "a", encoding="utf-8") as handle:
+    with open(github_env, "a", encoding="utf-8", newline="\n") as handle:
         for name, value in env_vars:
             handle.write(f"{name}={value}\n")
     print(f"  exported {len(path_entries)} PATH entries via $GITHUB_PATH")
@@ -613,15 +623,17 @@ def install_archive(
     print(f"  {url}")
     print(f"  -> {target}")
 
-    if target.is_dir() and any(target.iterdir()):
-        if not force:
-            print("  already installed, skipping (use --force to reinstall)")
-            return False
-        shutil.rmtree(target)
+    present = target.is_dir() and any(target.iterdir())
+    if present and not force:
+        print("  already installed, skipping (use --force to reinstall)")
+        return False
 
     if dry_run:
-        print("  would download and unpack")
+        print("  would reinstall" if present else "  would download and unpack")
         return False
+
+    if present:
+        shutil.rmtree(target)
 
     archive = cache_dir / (label.lower().replace(" ", "-") + archive_suffix(url))
     download(url, archive)
