@@ -28,7 +28,7 @@ param (
 )
 
 #Requires -Version 7.2
-    
+
 function mkdirp {
     param ([string] $dir, [switch] $clean)
 
@@ -38,19 +38,19 @@ function mkdirp {
     Remove-Item -Path "$dir\*" -Recurse -Force
     }
 }
-    
+
 function exec {
     param ([scriptblock]$private:cmd)
-    
+
     $global:LASTEXITCODE = 0
-    
+
     & $cmd
-    
+
     if ($LASTEXITCODE -ne 0) {
         throw "Command '$cmd' exited with code $LASTEXITCODE"
     }
 }
-  
+
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
