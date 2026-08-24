@@ -86,6 +86,14 @@ runs:
       run: |
         set -euo pipefail
 
+        # The script defaults to the newest SDK, but a workflow should say
+        # which one it wants. required: true is not enforced for a composite
+        # action, so check it here.
+        if [ -z '${{ inputs.sdk-version }}' ]; then
+          echo "::error::sdk-version is required"
+          exit 1
+        fi
+
         platform='${{ inputs.platform }}'
         if [ -z "$platform" ]; then
           case "${{ runner.os }}/${{ runner.arch }}" in

@@ -15,6 +15,12 @@ Needs Python 3.9 or newer, and `git` if you want it to clone the SDK too. To dow
 ```bash
 wget https://raw.githubusercontent.com/raspberrypi/pico-sdk-tools/main/installer/install_pico_tools.py
 chmod +x install_pico_tools.py
+./install_pico_tools.py
+```
+
+With no version it installs the newest SDK the extension data knows about. Name one to pin it:
+
+```bash
 ./install_pico_tools.py 2.3.0
 ```
 
@@ -168,7 +174,7 @@ Because the action runs as a step in your job, every later step sees the tools: 
 
 | Input                | Default                 | Notes                                              |
 | -------------------- | ----------------------- | -------------------------------------------------- |
-| `sdk-version`        | *(required)*            | e.g. `2.3.0`                                        |
+| `sdk-version`        | *(required)*            | e.g. `2.3.0`. Required here even though the script defaults to the newest, so a workflow cannot drift |
 | `platform`           | from `runner.os`/`arch` | Override to cross-download                          |
 | `install-dir`        | `~/.pico-sdk`           |                                                     |
 | `skip`               | *(none)*                | Space- or comma-separated component names           |
@@ -277,7 +283,7 @@ usage: install_pico_tools.py [-h] [--platform {linux_x64,linux_arm64,darwin_x64,
                              [--pico-sdk-tools-tag TAG] [--picotool-tag TAG]
                              [--openocd-tag TAG] [--openocd-version VERSION]
                              [--force] [--dry-run]
-                             sdk_version
+                             [sdk_version]
 ```
 
 Notable extras:

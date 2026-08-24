@@ -16,7 +16,7 @@ Needs Python 3.9 or newer and the standard library only. Also needs ``git`` to
 clone the SDK; without it that step is skipped with a warning.
 
 Examples:
-  ./install_pico_tools.py 2.3.0
+  ./install_pico_tools.py
   ./install_pico_tools.py 2.3.0 --no-openocd --no-riscv-toolchain
   ./install_pico_tools.py 2.3.0 --platform linux_x64 --github-path --no-rc-include
 """
@@ -232,6 +232,19 @@ def parse_toolchains_ini_text(text: str) -> ConfigParser:
     cp = ConfigParser()
     cp.read_file(StringIO(text))
     return cp
+
+
+def latest_sdk_version(bundles: dict) -> str:
+    """Newest SDK version in versionBundles.json.
+
+    Sorted numerically, so 2.10.0 would beat 2.9.0. A part that is not a plain
+    number sorts below one that is, keeping a prerelease under its release.
+    """
+
+    def parts(version: str) -> tuple[int, ...]:
+        return tuple(int(p) if p.isdigit() else -1 for p in version.split("."))
+
+    return max(bundles, key=parts)
 
 
 def merge_modifiers(bundle: dict, platform_key: str) -> dict:
@@ -650,7 +663,12 @@ def main() -> int:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("sdk_version", help="SDK version key, e.g. 2.3.0")
+    parser.add_argument(
+        "sdk_version",
+        nargs="?",
+        help="SDK version key, e.g. 2.3.0 (default: the newest one the "
+        "extension data knows about)",
+    )
     parser.add_argument(
         "--platform",
         choices=PLATFORMS,
@@ -768,7 +786,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    sdk_version = args.sdk_version.strip()
+    sdk_version = args.sdk_version.strip() if args.sdk_version else None
     try:
         platform_key = args.platform or detect_platform()
     except RuntimeError as exc:
@@ -816,7 +834,10 @@ def main() -> int:
         print(f"Failed to read version metadata: {exc}", file=sys.stderr)
         return 1
 
-    if sdk_version not in bundles:
+    if sdk_version is None:
+        sdk_version = latest_sdk_version(bundles)
+        print(f"No SDK version given, using the newest: {sdk_version}")
+    elif sdk_version not in bundles:
         print(
             f"Unknown SDK version {sdk_version!r}. Known: {', '.join(sorted(bundles))}",
             file=sys.stderr,
