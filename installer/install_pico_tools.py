@@ -5,15 +5,14 @@ Pico VS Code extension uses (``~/.pico-sdk``), then write a ``picorc`` there tha
 puts them all on ``PATH``, and include it from the user's shell rc file. On
 ``win32_x64`` a ``picorc.ps1`` is written for PowerShell as well.
 
-Versions are resolved from ``versionBundles.json`` and ``supportedToolchains.ini``
--- the same inputs the VS Code extension uses -- and the pico-sdk-tools release
-that publishes each asset is found through the GitHub API. Nothing about a
-specific SDK version is hard-coded here, so new releases need no changes.
+Versions are resolved from ``versionBundles.json`` and ``supportedToolchains.ini``,
+and the pico-sdk-tools release that publishes each asset is found through the
+GitHub API. Nothing about a specific SDK version is hard-coded here, so new
+releases need no changes.
 
-The platform is detected, or given explicitly with ``--platform`` -- which CI
-should do, so the same invocation cannot drift with the runner image.
+The platform is detected, or given explicitly with ``--platform``.
 
-Needs Python 3.9 or newer and the standard library only. ``git`` is used to
+Needs Python 3.9 or newer and the standard library only. Also needs ``git`` to
 clone the SDK; without it that step is skipped with a warning.
 
 Examples:
@@ -848,7 +847,10 @@ def main() -> int:
         try:
             releases = fetch_releases(PICO_SDK_TOOLS_REPO, token)
         except (RuntimeError, OSError) as exc:
-            print(f"Failed to list {PICO_SDK_TOOLS_REPO} releases: {exc}", file=sys.stderr)
+            print(
+                f"Failed to list {PICO_SDK_TOOLS_REPO} releases: {exc}",
+                file=sys.stderr,
+            )
             return 1
 
         tools_name = f"pico-sdk-tools-{sdk_version}-{suffix}"
@@ -1033,7 +1035,12 @@ def main() -> int:
             )
             ninja_bin = ninja_dir / "ninja"
             if ninja_bin.is_file():
-                ninja_bin.chmod(ninja_bin.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+                ninja_bin.chmod(
+                    ninja_bin.stat().st_mode
+                    | stat.S_IXUSR
+                    | stat.S_IXGRP
+                    | stat.S_IXOTH
+                )
     except urllib.error.HTTPError as exc:
         print(f"  HTTP {exc.code}: {exc.reason}", file=sys.stderr)
         return 1
@@ -1062,9 +1069,6 @@ def main() -> int:
         env_vars.append(("OPENOCD_SCRIPTS", openocd_dir / "scripts"))
     if not skip["arm-toolchain"]:
         path_entries.append(arm_dir / "bin")
-        # Not PICO_TOOLCHAIN_PATH: pinning it to the Arm toolchain makes
-        # every RISC-V configure warn before falling back to PATH, which finds
-        # the right compiler by triple anyway.
         env_vars.append(("PICO_ARM_TOOLCHAIN_PATH", arm_dir))
     if not skip["riscv-toolchain"]:
         path_entries.append(riscv_dir / "bin")
@@ -1073,8 +1077,6 @@ def main() -> int:
         path_entries.append(cmake_dir / "bin")
     if not skip["ninja"]:
         path_entries.append(ninja_dir)
-        # CMake picks Unix Makefiles by default; ninja is what we just installed
-        # and what the extension configures. A -G on the command line still wins.
         env_vars.append(("CMAKE_GENERATOR", "Ninja"))
 
     if sdk_dir.is_dir():
