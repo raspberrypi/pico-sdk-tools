@@ -11,9 +11,9 @@ The tools currently included are:
 
 ## Installing the tools
 
-[`installer/`](installer) holds a script that downloads these tools, plus the
-Arm toolchain, CMake and ninja, into `~/.pico-sdk` - the same layout the
-pico-vscode extension uses - and puts them on `PATH`:
+> Note: This installer is in beta, so arguments and format are subject to change
+
+[`installer/`](installer) holds a script that downloads these tools, plus the Arm toolchain, CMake and ninja, into `~/.pico-sdk` - the same layout the pico-vscode extension uses - and puts them on `PATH`
 
 It needs Python 3.9 or newer, and `git` if you want it to clone the SDK too:
 
@@ -23,8 +23,7 @@ chmod +x install_pico_tools.py
 ./install_pico_tools.py 2.3.0
 ```
 
-It is also a composite action, so a GitHub Actions job can install the same set
-of tools in one step:
+It is also a composite action, so a GitHub Actions job can install the same set of tools in one step:
 
 ```yaml
 - uses: raspberrypi/pico-sdk-tools/installer@main
