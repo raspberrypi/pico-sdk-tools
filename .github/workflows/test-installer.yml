@@ -41,6 +41,10 @@ jobs:
         with:
           sdk-version: ${{ matrix.sdk }}
           openocd: true   # off by default, so ask for it to cover it here
+          # A cold install is what these jobs are meant to prove, and caching
+          # seven runners filled the repo's cache budget. Skip-components below
+          # is the job that covers the cache path.
+          cache: false
 
       # Only so that `openocd --version` runs below. The action deliberately
       # does not install these: a hosted runner has no hardware to debug.
@@ -85,15 +89,21 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install without RISC-V, OpenOCD, CMake or ninja
+        id: tools
         uses: ./installer
         with:
           sdk-version: '2.3.0'
           skip: riscv-toolchain,openocd,cmake,ninja
+          # The one job left caching, so the restore and save path stays
+          # covered. Its skip list keeps the entry to a few hundred MB, and one
+          # key means no races.
+          cache: true
 
       - name: Only the requested tools should be present
         shell: bash
         run: |
           set -euo pipefail
+          echo "cache-hit: ${{ steps.tools.outputs.cache-hit }}"
           arm-none-eabi-gcc --version | head -1
           picotool version | head -1
           pioasm --version

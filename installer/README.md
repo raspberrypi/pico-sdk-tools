@@ -305,6 +305,12 @@ a digest of the installer script and the remaining inputs. A warm cache turns
 the install step into a restore, so there is no reason to add an
 `actions/cache` block of your own. Set `cache: false` to opt out.
 
+The entry holds the whole install directory, so it is a few hundred MB with the
+default component set and over a GB with the SDK. A repository gets 10 GB of
+cache in total, and the key changes whenever the installer or the inputs do, so
+a matrix across several platforms can crowd out other caches. Turn it off for
+jobs where a cold install is the point.
+
 Two details the key has to respect: the release tag is in it so that a new
 `pico-sdk-tools` release is picked up rather than masked by a stale cache, and
 the rest is digested rather than interpolated because `actions/cache` rejects
