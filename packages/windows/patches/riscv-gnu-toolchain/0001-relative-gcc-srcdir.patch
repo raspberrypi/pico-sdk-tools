@@ -1,0 +1,32 @@
+From b1de1c9e0d7146a5dc29436ef0b63527a16361c6 Mon Sep 17 00:00:00 2001
+From: William Vinnicombe <william.vinnicombe@raspberrypi.com>
+Date: Tue, 18 Aug 2026 18:02:02 +0100
+Subject: [PATCH] Keep an out of tree gcc source dir relative, for msys2
+ mingw64 builds
+
+gengtype reads the source path out of gtyp-input.list, without the msys
+path conversion that native programs get for their arguments, so an
+absolute path fails.
+---
+ Makefile.in | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/Makefile.in b/Makefile.in
+index 71870a4..3e7bf06 100644
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -123,7 +123,14 @@ gccsrcdir := $(shell case $(mayberelsrcdir) in \
+ 		  (*)  echo ../$(mayberelsrcdir)/gcc ;; \
+ 		esac)
+ else
++# Likewise for an out of tree source dir; the gcc build dirs are children of
++# this one, hence the extra level.
++gccrelsrcdir := $(shell realpath --relative-to='$(CURDIR)' '$(GCC_SRCDIR)' 2> /dev/null)
++ifeq ($(gccrelsrcdir),)
+ gccsrcdir := $(abspath $(GCC_SRCDIR))
++else
++gccsrcdir := ../$(gccrelsrcdir)
++endif
+ endif
+ 
+ WITH_ARCH ?= @WITH_ARCH@

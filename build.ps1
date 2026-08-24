@@ -136,8 +136,19 @@ $repositories | ForEach-Object {
   $repodir = Join-Path 'build' ([IO.Path]::GetFileNameWithoutExtension($_.href))
   $repodir = $repodir.TrimEnd("-rp2350")
 
+  $skip = ''
+  if (($_ | Get-Member riscv) -and ($env:SKIP_RISCV -eq '1')) {
+    $skip = 'SKIP_RISCV'
+  }
+  elseif (($_ | Get-Member openocd) -and ($env:SKIP_OPENOCD -eq '1')) {
+    $skip = 'SKIP_OPENOCD'
+  }
+
   if ($_ | Get-Member pi_only) {
     Write-Host "Skipping Pi only ${repodir}"
+  }
+  elseif ($skip) {
+    Write-Host "Skipping ${repodir} as $skip is set"
   }
   elseif ($SkipDownload) {
     Write-Host "Checking ${repodir}: " -NoNewline
@@ -213,10 +224,10 @@ if (-not $SkipDownload) {
   msys "pacboy -S --noconfirm --needed cmake:p ninja:p toolchain:p libusb:p hidapi:p libslirp:p"
 }
 
+# Apply any patches, including the Windows only ones
+msys "cd build && ../packages/common/apply-patches.sh ../packages/windows/patches"
+
 if (-not (Test-Path ".\build\riscv-install\$msysEnv") -and ($env:SKIP_RISCV -ne '1')) {
-  # Workaround for sourceware.org sometimes not working
-  msys "cd build && ../packages/common/riscv/download-submodules.sh"
-  msys "cd build && ../packages/common/riscv/apply-patches.sh"
   msys "cd build && ../packages/windows/riscv/build-riscv-gcc.sh"
 }
 

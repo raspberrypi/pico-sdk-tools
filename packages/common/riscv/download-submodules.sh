@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# This script is unused, but kept in case it is needed in the future
+
 # Populate the sourceware.org-hosted submodules of riscv-gnu-toolchain from
 # release tarballs on the UK Mirror Service, for use while sourceware.org is
 # unreachable.  Run from the build directory, before apply-patches.sh, as the
@@ -8,18 +10,12 @@
 # Each tarball below is the release that riscv-gnu-toolchain pins its submodule
 # to, so the sources are those a working `git submodule update` would check out:
 #
-#     binutils-2.46.0     "This is the 2.46 release"
 #     gdb-17.1            "Set GDB version number to 17.1."
 #     newlib-4.6.0        "Changes for 4.6.0 snapshot"
 #
 # Those commits are listed below too, and are checked against the ones
 # riscv-gnu-toolchain actually pins, so that updating the toolchain does not
 # quietly leave this script fetching the sources for the previous one.
-#
-# The gcc submodule is not handled here: it is pinned to the GitHub mirror at
-# github.com/gcc-mirror/gcc, which the outage does not affect.  Once
-# sourceware.org is reachable again, drop the calls to this script from the
-# top level build scripts to go back to fetching the submodules over Git.
 
 set -euo pipefail
 
@@ -31,7 +27,6 @@ trap 'rm -rf "${TARBALLDIR}"' EXIT
 
 # component|path under $MIRROR|sha512 of the tarball|commit the tarball matches
 SUBMODULES=(
-    "binutils|binutils/releases/binutils-2.46.0.tar.xz|32f880bb4f69351f4ae54a5d00359625c6c49d8e76624fb5cffdf174c79c8d3212f66225b81c12933c6ed59604ab652560773dd92fab384b930c97a9d4e1fdf2|49d4d3fafa4ec4ff5a3460d91d5b1ed5286487db"
     "gdb|gdb/releases/gdb-17.1.tar.xz|f1a6751e439a2128fecf3eae8b57c1608a0dc7cfe79b4356a937874e5a42bb2df0aba36eb6a9452c41966908b9a59076c7cad9720f684688ab956b65080f1d7c|631a49c452a4a456dd9889d172541ea789f8bcae"
     "newlib|newlib/newlib-4.6.0.20260123.tar.gz|ffa16d6465c0b429264c46395fa760fbcf072d3ff86e87330ba1f483efcfe66393ef83b03932759444a0ebeaef94d3ca58a59e91ab7b97b2a6ac6be2e7589657|8ba4275b83ec27529f67e0d477611fa6d8d6e6bd"
 )

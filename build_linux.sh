@@ -33,6 +33,17 @@ do
     filename=${filename%"-rp2350"}
     repodir="$builddir/${filename}"
 
+    skip=
+    if [[ "$(echo "$repo" | jq -r .riscv)" == "true" ]] && [[ "$SKIP_RISCV" == 1 ]]; then
+        skip=SKIP_RISCV
+    elif [[ "$(echo "$repo" | jq -r .openocd)" == "true" ]] && [[ "$SKIP_OPENOCD" == 1 ]]; then
+        skip=SKIP_OPENOCD
+    fi
+    if [[ -n "$skip" ]]; then
+        echo "Skipping ${href} as ${skip} is set"
+        continue
+    fi
+
     echo "${href} ${tree} ${filename} ${extension} ${repodir}"
     rm -rf "${repodir}"
     git clone -b "${tree}" --depth=1 -c advice.detachedHead=false "${href}" "${repodir}"
@@ -44,6 +55,10 @@ done < <(echo "$repos")
 
 
 cd $builddir
+
+# Apply any patches
+../packages/common/apply-patches.sh
+
 if [[ "$SKIP_OPENOCD" != 1 ]]; then
     if ! ../packages/linux/openocd/build-openocd.sh; then
         echo "::error title=openocd-fail-${suffix}::OpenOCD Build Failed on Linux $(uname -m)"
@@ -52,9 +67,6 @@ if [[ "$SKIP_OPENOCD" != 1 ]]; then
 fi
 if [[ "$SKIP_RISCV" != 1 ]]; then
     # Takes ages to build
-    # Workaround for sourceware.org sometimes not working
-    ../packages/common/riscv/download-submodules.sh
-    ../packages/common/riscv/apply-patches.sh
     ../packages/linux/riscv/build-riscv-gcc.sh
 fi
 ../packages/linux/picotool/build-picotool.sh
