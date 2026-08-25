@@ -2,11 +2,11 @@
 
 A single Python script that downloads the Raspberry Pi Pico toolchains and tools into `~/.pico-sdk` - the same locations and layout the [Pico VS Code extension](https://github.com/raspberrypi/pico-vscode) uses - then writes a `picorc` alongside them that puts them all on `PATH`, and includes it from your shell rc file.
 
-It resolves versions from the extension's `versionBundles.json` and `supportedToolchains.ini`, so `2.3.0` gets you exactly the toolchain, picotool, OpenOCD, CMake and ninja that the extension would install for SDK 2.3.0.
+It resolves versions from the extension's `versionBundles.json` and `supportedToolchains.ini`, so `2.3.0` gets you exactly the toolchain, picotool, OpenOCD, CMake and ninja that the Pico VS Code extension would install for SDK 2.3.0.
 
 Because it installs to the same directories, a machine set up with this script and a machine set up through VS Code end up with the same tools, and neither will re-download what the other already fetched.
 
-Nothing about a particular SDK version is written down in the script, so a new SDK release should require no changes to it (this installer is in beta, so that is not guaranteed).
+The installer script has no dependencies on a particular SDK version, so it should be able to install a new SDK release with no additional changes (although as the installer script is in beta, this is not guaranteed).
 
 ## Quick start
 
@@ -18,7 +18,7 @@ chmod +x install_pico_tools.py
 ./install_pico_tools.py
 ```
 
-With no version it installs the newest SDK the extension data knows about. Name one to pin it:
+With no SDK version specified it installs the newest SDK the extension data knows about. Provide a specific SDK version to explicitly install it:
 
 ```bash
 ./install_pico_tools.py 2.3.0
@@ -31,7 +31,7 @@ exec $SHELL          # or: source ~/.pico-sdk/picorc
 picotool version
 ```
 
-The platform is detected from the machine, or pass `--platform` for anything it fails to detect (CI always passes one):
+The platform is detected automatically, or pass `--platform` if auto-detection fails (CI always passes an explicit platform):
 
 | `--platform`   | Target                       | Detected from                |
 | -------------- | ---------------------------- | ---------------------------- |
@@ -41,7 +41,7 @@ The platform is detected from the machine, or pass `--platform` for anything it 
 | `darwin_arm64` | macOS Apple silicon          | `darwin` + `arm64`           |
 | `win32_x64`    | Windows x64                  | `win32`, any architecture    |
 
-There are no 32-bit builds, so 32-bit Arm Linux is one of the cases that errors out.
+There are no 32-bit builds, so 32-bit Arm Linux is unsupported.
 
 See [Use from GitHub Actions](#use-from-github-actions) for using this script in GitHub Actions.
 
@@ -62,7 +62,7 @@ By default, everything is downloaded to `~/.pico-sdk` (override with `--install-
 
 Arm GCC comes from Arm's download server; `pioasm`, `picotool`, OpenOCD and the RISC-V toolchain come from this repository's releases; CMake and ninja come from their upstream releases. The SDK is a shallow `git clone` at the matching tag followed by `git submodule update --init --depth 1`, and sets `PICO_SDK_PATH`.
 
-If git is not installed, the SDK is skipped with a warning and the rest still installs. A clone that is already there is reused; if it is missing submodules they are initialised in place, without discarding any local changes.
+If git is not installed, the SDK is skipped with a warning and the rest still installs. An SDK clone that is already there is reused; if it is missing submodules they are initialised in place, without discarding any local changes.
 
 Components already present are left alone, use `--force` to reinstall them.
 
