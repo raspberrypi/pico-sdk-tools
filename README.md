@@ -13,7 +13,7 @@ The tools currently included are:
 
 > Note: This installer is in beta, so arguments and format are subject to change
 
-[`installer/`](installer) holds a script that downloads these tools, plus the Arm toolchain, CMake and ninja, into `~/.pico-sdk` - the same layout the pico-vscode extension uses - and puts them on `PATH`
+[`installer/install_pico_tools.py`](installer/install_pico_tools.py) is a script that downloads these tools, plus the Arm toolchain, CMake and ninja, into `~/.pico-sdk` - the same layout the pico-vscode extension uses - and puts them on `PATH`
 
 It needs Python 3.9 or newer, and `git` if you want it to clone the SDK too:
 

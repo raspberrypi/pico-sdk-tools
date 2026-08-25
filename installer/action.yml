@@ -10,7 +10,7 @@ branding:
 
 inputs:
   sdk-version:
-    description: SDK version key, e.g. 2.3.0
+    description: Pico SDK version, e.g. 2.3.0
     required: true
   platform:
     description: >-
@@ -24,7 +24,7 @@ inputs:
     default: ''
   skip:
     description: >-
-      Space- or comma-separated components not to download. One or more of:
+      Space- or comma-separated list of components to not download. One or more of:
       arm-toolchain riscv-toolchain pico-sdk-tools picotool openocd cmake ninja
     required: false
     default: ''
