@@ -156,15 +156,14 @@ jobs:
             Write-Host "$t -> $($c.Source)"
           }
           if ($env:CMAKE_GENERATOR -ne 'Ninja') { throw 'CMAKE_GENERATOR not set' }
-          # Sourcing twice must not duplicate PATH entries
-          $one = ($env:PATH -split [IO.Path]::PathSeparator).Count
+          # Sourcing twice must leave PATH exactly as it was
+          $before = $env:PATH
           . "$HOME/.pico-sdk/picorc.ps1"
-          if (($env:PATH -split [IO.Path]::PathSeparator).Count -ne $one) {
-            throw 'PATH entries duplicated'
-          }
+          if ($env:PATH -ne $before) { throw 'PATH changed on a second source' }
 
-      # windows-latest has both, and the runner is thrown away afterwards, so
-      # this is the one place the profile wiring can be tested for real.
+      # windows-latest has both 'pwsh' and 'powershell' profiles, and the runner
+      # is thrown away afterwards, so this is the one place the profile wiring
+      # can be tested for real.
       - name: Both PowerShell profiles get the include block
         shell: bash
         env:
@@ -205,11 +204,10 @@ jobs:
             --no-sdk --no-arm-toolchain --no-riscv-toolchain \
             --no-openocd --no-cmake --no-ninja \
             --rc-file "$RUNNER_TEMP/bashrc"
-          # Sourcing twice must not duplicate PATH entries.
+          # Sourcing twice must leave PATH byte for byte identical.
           . "$HOME/.pico-sdk/picorc"
-          before=$(echo "$PATH" | tr ':' '\n' | grep -c '.pico-sdk')
+          before="$PATH"
           . "$HOME/.pico-sdk/picorc"
-          after=$(echo "$PATH" | tr ':' '\n' | grep -c '.pico-sdk')
-          test "$before" = "$after"
+          test "$before" = "$PATH"
           grep -q 'pico-sdk-tools installer' "$RUNNER_TEMP/bashrc"
           picotool version | head -1

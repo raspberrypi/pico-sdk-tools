@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
 Install the Raspberry Pi Pico toolchains and tools into the same locations the
-Pico VS Code extension uses (``~/.pico-sdk``), then write a ``picorc`` there that
-puts them all on ``PATH``, and include it from the user's shell rc file. On
-``win32_x64`` a ``picorc.ps1`` is written for PowerShell as well.
+Pico VS Code extension uses (`~/.pico-sdk`), then write a `picorc` there that
+puts them all on `PATH`, and include it from the user's shell rc file. On
+`win32_x64` a `picorc.ps1` is written for PowerShell as well.
 
-Versions are resolved from ``versionBundles.json`` and ``supportedToolchains.ini``,
+Versions are resolved from `versionBundles.json` and `supportedToolchains.ini`,
 and the pico-sdk-tools release that publishes each asset is found through the
 GitHub API. Nothing about a specific SDK version is hard-coded here, so new
 releases need no changes.
 
-The platform is detected, or given explicitly with ``--platform``.
+The platform is detected, or given explicitly with `--platform`.
 
-Needs Python 3.9 or newer and the standard library only. Also needs ``git`` to
+Needs Python 3.9 or newer and the standard library only. Also needs `git` to
 clone the SDK; without it that step is skipped with a warning.
 
 Examples:
@@ -42,12 +42,13 @@ from pathlib import Path
 
 GITHUB_API = "https://api.github.com"
 GITHUB_RAW = "https://raw.githubusercontent.com"
+
 PICO_VSCODE_REPO = "raspberrypi/pico-vscode"
 PICO_SDK_TOOLS_REPO = "raspberrypi/pico-sdk-tools"
-PICO_SDK_REPO_URL = "https://github.com/raspberrypi/pico-sdk.git"
+PICO_SDK_REPO = "raspberrypi/pico-sdk"
+NINJA_REPO = "ninja-build/ninja"
+CMAKE_REPO = "Kitware/CMake"
 
-GITHUB_NINJA = "https://github.com/ninja-build/ninja"
-GITHUB_CMAKE = "https://github.com/Kitware/CMake"
 
 USER_AGENT = "install_pico_tools.py"
 
@@ -101,8 +102,13 @@ SDK_SUBMODULE_MARKERS = (
     "lib/mbedtls/library/aes.c",
 )
 
-PICORC_BEGIN = "# >>> pico-sdk-tools installer >>>"
-PICORC_END = "# <<< pico-sdk-tools installer <<<"
+# Longest first, so .tar.gz wins over .tar.
+TAR_EXTENSIONS = (".tar.gz", ".tar.xz", ".tar.bz2", ".tar")
+ZIP_EXTENSIONS = (".zip",)
+
+PICORC_LABEL = "pico-sdk-tools installer"
+PICORC_BEGIN = f"# >>> {PICORC_LABEL} >>>"
+PICORC_END = f"# <<< {PICORC_LABEL} <<<"
 
 
 # --------------------------------------------------------------------------
@@ -140,22 +146,32 @@ def _extract_zip(archive: Path, target: Path) -> None:
     with zipfile.ZipFile(archive) as zf:
         for info in zf.infolist():
             mode = info.external_attr >> 16
-            out = zf.extract(info, target)
+            out = Path(zf.extract(info, target))
             if mode and stat.S_ISLNK(mode):
-                # macOS/Linux zips can carry symlinks; recreate them
-                link_target = Path(out).read_text()
-                Path(out).unlink()
-                os.symlink(link_target, out)
+                # macOS/Linux zips can carry symlinks; recreate them, but only
+                # when they stay inside the target, since the archive can name
+                # any target it likes.
+                link_target = out.read_text()
+                resolved = (out.parent / link_target).resolve()
+                if not resolved.is_relative_to(target.resolve()):
+                    raise RuntimeError(
+                        f"{archive.name} has a symlink pointing outside the "
+                        f"install directory: {info.filename} -> {link_target}"
+                    )
+                out.unlink()
+                out.symlink_to(link_target)
             elif mode:
-                os.chmod(out, mode & 0o7777)
+                out.chmod(mode & 0o7777)
 
 
 def _extract_tar(archive: Path, target: Path) -> None:
     with tarfile.open(archive, "r:*") as tf:
         # Added in 3.12 and backported as a security fix, so feature-detect
-        # rather than checking the version, as the tarfile docs advise.
+        # rather than checking the version, as the tarfile docs advise. "data"
+        # is the stricter filter: it also refuses absolute paths, links leaving
+        # the target, and special files.
         if hasattr(tarfile, "data_filter"):
-            tf.extractall(target, filter="tar")
+            tf.extractall(target, filter="data")
         else:
             tf.extractall(target)
 
@@ -175,9 +191,9 @@ def flatten_single_dir(target: Path) -> None:
 def extract(archive: Path, target: Path) -> None:
     target.mkdir(parents=True, exist_ok=True)
     name = archive.name.lower()
-    if name.endswith(".zip"):
+    if name.endswith(ZIP_EXTENSIONS):
         _extract_zip(archive, target)
-    elif ".tar." in name or name.endswith(".tar"):
+    elif name.endswith(TAR_EXTENSIONS):
         _extract_tar(archive, target)
     else:
         raise RuntimeError(f"Unsupported archive type: {archive.name}")
@@ -185,9 +201,9 @@ def extract(archive: Path, target: Path) -> None:
 
 
 def archive_suffix(url: str) -> str:
-    seg = url.rstrip("/").split("/")[-1].split("?")[0]
+    seg = url.split("/")[-1].split("?")[0]
     lowered = seg.lower()
-    for suffix in (".tar.gz", ".tar.xz", ".tar.bz2", ".tar", ".zip"):
+    for suffix in TAR_EXTENSIONS + ZIP_EXTENSIONS:
         if lowered.endswith(suffix):
             return suffix
     return Path(seg).suffix
@@ -259,6 +275,18 @@ def merge_modifiers(bundle: dict, platform_key: str) -> dict:
 # --------------------------------------------------------------------------
 
 
+def clone_url(repo: str) -> str:
+    return f"https://github.com/{repo}.git"
+
+
+def release_asset_url(repo: str, tag: str, asset: str) -> str:
+    return f"https://github.com/{repo}/releases/download/{tag}/{asset}"
+
+
+def raw_url(repo: str, ref: str, path: str) -> str:
+    return f"{GITHUB_RAW}/{repo}/{ref}/{path}"
+
+
 def github_api(path: str, token: str | None):
     """GET a GitHub API path and decode the JSON body."""
     headers = {"User-Agent": USER_AGENT, "Accept": "application/vnd.github+json"}
@@ -300,7 +328,7 @@ def extension_data_url(version: str) -> str:
     Read from the repository, not the published site: the version number came
     from the repository, and the site can lag behind it after a release.
     """
-    return f"{GITHUB_RAW}/{PICO_VSCODE_REPO}/main/data/{version}"
+    return raw_url(PICO_VSCODE_REPO, "main", f"data/{version}")
 
 
 def fetch_releases(repo: str, token: str | None) -> list[dict]:
@@ -561,7 +589,7 @@ def install_sdk(version: str, target: Path, force: bool, dry_run: bool) -> bool:
     and an SDK already sitting in place is fine to reuse.
     """
     print("pico-sdk:")
-    print(f"  {PICO_SDK_REPO_URL} at {version}")
+    print(f"  {clone_url(PICO_SDK_REPO)} at {version}")
     print(f"  -> {target}")
 
     git = shutil.which("git")
@@ -613,7 +641,7 @@ def install_sdk(version: str, target: Path, force: bool, dry_run: bool) -> bool:
             "1",
             "--branch",
             version,
-            PICO_SDK_REPO_URL,
+            clone_url(PICO_SDK_REPO),
             str(target),
         ]
     )
@@ -1032,7 +1060,7 @@ def main() -> int:
             asset = CMAKE_ASSET[platform_key].format(v=cmake_version.lstrip("v"))
             installed = install_archive(
                 "CMake",
-                f"{GITHUB_CMAKE}/releases/download/{cmake_version}/{asset}",
+                release_asset_url(CMAKE_REPO, cmake_version, asset),
                 cmake_dir,
                 cache_dir,
                 args.force,
@@ -1047,8 +1075,9 @@ def main() -> int:
         if not skip["ninja"]:
             install_archive(
                 "ninja",
-                f"{GITHUB_NINJA}/releases/download/{ninja_version}/"
-                f"{NINJA_ASSET[platform_key]}",
+                release_asset_url(
+                    NINJA_REPO, ninja_version, NINJA_ASSET[platform_key]
+                ),
                 ninja_dir,
                 cache_dir,
                 args.force,
