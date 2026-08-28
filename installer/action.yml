@@ -1,0 +1,200 @@
+name: Setup Pico SDK tools
+description: >-
+  Download the Raspberry Pi Pico toolchains and tools into ~/.pico-sdk (the same
+  layout the Pico VS Code extension uses) and put them on PATH for later steps.
+author: Raspberry Pi
+
+branding:
+  icon: cpu
+  color: red
+
+inputs:
+  sdk-version:
+    description: Pico SDK version, e.g. 2.3.0
+    required: true
+  platform:
+    description: >-
+      Platform key (linux_x64, linux_arm64, darwin_x64, darwin_arm64,
+      win32_x64). Defaults to one derived from runner.os / runner.arch.
+    required: false
+    default: ''
+  install-dir:
+    description: 'Where to install (default: ~/.pico-sdk)'
+    required: false
+    default: ''
+  skip:
+    description: >-
+      Space- or comma-separated list of components to not download. One or more of:
+      arm-toolchain riscv-toolchain pico-sdk-tools picotool openocd cmake ninja
+    required: false
+    default: ''
+  sdk:
+    description: >-
+      Clone the SDK into the install directory as well. Off by default: a
+      workflow usually checks out its own SDK at a pinned ref, and the clone is
+      a few hundred MB. Needs git on PATH.
+    required: false
+    default: 'false'
+  openocd:
+    description: >-
+      Install OpenOCD as well. Off by default, since a hosted runner has nothing
+      to debug and the runner images lack the libraries OpenOCD links against.
+      Worth turning on for a self-hosted runner with hardware attached.
+    required: false
+    default: 'false'
+  cache:
+    description: Cache the install directory between runs
+    required: false
+    default: 'true'
+  extension-data-url:
+    description: >-
+      Base URL for versionBundles.json and supportedToolchains.ini. Empty uses
+      the installer's default.
+    required: false
+    default: ''
+  extra-args:
+    description: Additional arguments passed straight through to install_pico_tools.py
+    required: false
+    default: ''
+  github-token:
+    description: >-
+      Token for the GitHub API calls that resolve which release publishes each
+      tool. Defaults to the job's token; unauthenticated requests are limited to
+      60 an hour.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  install-dir:
+    description: Directory the tools were installed into
+    value: ${{ steps.resolve.outputs.install-dir }}
+  platform:
+    description: Platform key that was used
+    value: ${{ steps.resolve.outputs.platform }}
+  cache-hit:
+    description: Whether the install directory was restored from cache
+    value: ${{ steps.cache.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve platform and install directory
+      id: resolve
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
+      run: |
+        set -euo pipefail
+
+        # The script defaults to the newest SDK, but a workflow should say
+        # which one it wants. required: true is not enforced for a composite
+        # action, so check it here.
+        if [ -z '${{ inputs.sdk-version }}' ]; then
+          echo "::error::sdk-version is required"
+          exit 1
+        fi
+
+        platform='${{ inputs.platform }}'
+        if [ -z "$platform" ]; then
+          case "${{ runner.os }}/${{ runner.arch }}" in
+            Linux/X64)     platform=linux_x64 ;;
+            Linux/ARM64)   platform=linux_arm64 ;;
+            macOS/ARM64)   platform=darwin_arm64 ;;
+            macOS/X64)     platform=darwin_x64 ;;
+            Windows/X64)   platform=win32_x64 ;;
+            Windows/ARM64) platform=win32_x64 ;;
+            *)
+              echo "::error::Cannot map ${{ runner.os }}/${{ runner.arch }} to a platform key; set the 'platform' input"
+              exit 1
+              ;;
+          esac
+        fi
+
+        install_dir='${{ inputs.install-dir }}'
+        if [ -z "$install_dir" ]; then
+          install_dir="$HOME/.pico-sdk"
+        fi
+
+        # Windows runners ship 'python', not 'python3'.
+        if command -v python3 >/dev/null 2>&1; then
+          python_bin=python3
+        else
+          python_bin=python
+        fi
+
+        skip_args=''
+        for component in $(echo '${{ inputs.skip }}' | tr ',' ' '); do
+          skip_args="$skip_args --no-$component"
+        done
+        if [ '${{ inputs.sdk }}' != 'true' ]; then
+          skip_args="$skip_args --no-sdk"
+        fi
+        if [ '${{ inputs.openocd }}' != 'true' ]; then
+          skip_args="$skip_args --no-openocd"
+        fi
+
+        # The newest release tag belongs in the cache key, or a warm cache
+        # would pin the job to an older build. Not worth failing over.
+        auth=()
+        if [ -n "${GITHUB_TOKEN:-}" ]; then
+          auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
+        fi
+        # ${auth[@]+...} tolerates an empty array under `set -u` on bash 3.2
+        tools_release=$(
+          curl -fsSL ${auth[@]+"${auth[@]}"} \
+            https://api.github.com/repos/raspberrypi/pico-sdk-tools/releases/latest \
+            | "$python_bin" -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])'
+        ) || tools_release=unresolved
+
+        # Digested here because actions/cache rejects keys containing a
+        # comma, and hashFiles() only globs paths relative to the workspace.
+        digest=$(
+          "$python_bin" -c 'import hashlib,sys; h=hashlib.sha256(); h.update(open(sys.argv[1],"rb").read()); h.update("\0".join(sys.argv[2:]).encode()); print(h.hexdigest()[:16])' \
+            "${{ github.action_path }}/install_pico_tools.py" \
+            '${{ inputs.skip }}' \
+            '${{ inputs.sdk }}' \
+            '${{ inputs.openocd }}' \
+            '${{ inputs.extension-data-url }}' \
+            '${{ inputs.extra-args }}'
+        )
+
+        {
+          echo "platform=$platform"
+          echo "install-dir=$install_dir"
+          echo "python-bin=$python_bin"
+          echo "skip-args=$skip_args"
+          echo "cache-key=pico-sdk-tools-$platform-${{ inputs.sdk-version }}-$tools_release-$digest"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Restore cached tools
+      id: cache
+      if: inputs.cache == 'true'
+      uses: actions/cache@v5
+      with:
+        path: ${{ steps.resolve.outputs.install-dir }}
+        key: ${{ steps.resolve.outputs.cache-key }}
+
+    - name: Install Pico SDK tools
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
+      run: |
+        set -euo pipefail
+
+        # Seeded so the array is never empty, which `set -u` rejects on bash 3.2.
+        args=(
+          '${{ inputs.sdk-version }}'
+          --platform '${{ steps.resolve.outputs.platform }}'
+          --install-dir '${{ steps.resolve.outputs.install-dir }}'
+          --github-path
+          --no-picorc
+        )
+        if [ -n '${{ inputs.extension-data-url }}' ]; then
+          args+=(--extension-data-url '${{ inputs.extension-data-url }}')
+        fi
+
+        "${{ steps.resolve.outputs.python-bin }}" \
+          "${{ github.action_path }}/install_pico_tools.py" \
+          "${args[@]}" \
+          ${{ steps.resolve.outputs.skip-args }} \
+          ${{ inputs.extra-args }}

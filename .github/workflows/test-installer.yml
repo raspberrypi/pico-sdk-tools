@@ -1,0 +1,213 @@
+# Exercises the installer on every supported runner platform.
+name: Test installer
+
+on:
+  push:
+    paths:
+      - 'installer/**'
+      - '!installer/README.md'
+      - '.github/workflows/test-installer.yml'
+  pull_request:
+    paths:
+      - 'installer/**'
+      - '!installer/README.md'
+      - '.github/workflows/test-installer.yml'
+  workflow_dispatch:
+
+jobs:
+  install:
+    # join() renders a label list as well as a plain string, so both kinds of
+    # runner get a readable job name.
+    name: ${{ join(matrix.runner, ' ') }} (SDK ${{ matrix.sdk }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - macos-latest
+          - macos-15-intel
+          - windows-latest
+          - [self-hosted, linux, arm64, trixie]
+          - [self-hosted, linux, arm64, trixie_desktop]
+        sdk: ['2.3.0']
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Pico SDK tools
+        id: tools
+        uses: ./installer
+        with:
+          sdk-version: ${{ matrix.sdk }}
+          openocd: true   # off by default, so ask for it to cover it here
+          # A cold install is what these jobs are meant to prove, and caching
+          # seven runners filled the repo's cache budget. Skip-components below
+          # is the job that covers the cache path.
+          cache: false
+
+      # Only so that `openocd --version` runs below. The action deliberately
+      # does not install these: a hosted runner has no hardware to debug.
+      # Skipped on self-hosted runners, which already have them and should not
+      # have packages installed on them by a test.
+      - name: Install OpenOCD's runtime libraries
+        if: runner.os == 'Linux' && runner.environment == 'github-hosted'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libftdi1-2 libhidapi-hidraw0
+
+      - name: Check the tools are on PATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "installed into ${{ steps.tools.outputs.install-dir }}"
+          arm-none-eabi-gcc --version | head -1
+          # The RISC-V triple depends on the toolchain build the SDK version
+          # pins -- riscv32-unknown-elf and riscv32-pico-elf are both in use --
+          # so find the compiler rather than naming it.
+          riscv_gcc=$(ls "$PICO_RISCV_TOOLCHAIN_PATH/bin" |
+            grep -E '^riscv32-.*-gcc(\.exe)?$' | head -1)
+          "$riscv_gcc" --version | head -1
+          picotool version | head -1
+          pioasm --version
+          cmake --version | head -1
+          ninja --version
+          openocd --version 2>&1 | head -1
+          echo "picotool_DIR=$picotool_DIR"
+          echo "pioasm_DIR=$pioasm_DIR"
+          echo "PICO_ARM_TOOLCHAIN_PATH=$PICO_ARM_TOOLCHAIN_PATH"
+          test "$CMAKE_GENERATOR" = Ninja
+          echo "PICO_RISCV_TOOLCHAIN_PATH=$PICO_RISCV_TOOLCHAIN_PATH"
+          # PICO_TOOLCHAIN_PATH must stay unset so the SDK picks the compiler
+          # matching PICO_PLATFORM off PATH, without a "not found there" warning
+          test -z "${PICO_TOOLCHAIN_PATH:-}"
+
+  skip-flags:
+    name: Skip components
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install without RISC-V, OpenOCD, CMake or ninja
+        id: tools
+        uses: ./installer
+        with:
+          sdk-version: '2.3.0'
+          skip: riscv-toolchain,openocd,cmake,ninja
+          # The one job left caching, so the restore and save path stays
+          # covered. Its skip list keeps the entry to a few hundred MB, and one
+          # key means no races.
+          cache: true
+
+      - name: Only the requested tools should be present
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "cache-hit: ${{ steps.tools.outputs.cache-hit }}"
+          arm-none-eabi-gcc --version | head -1
+          picotool version | head -1
+          pioasm --version
+          test ! -d "$HOME/.pico-sdk/openocd" || { echo "openocd was installed"; exit 1; }
+          test ! -d "$HOME/.pico-sdk/ninja"   || { echo "ninja was installed"; exit 1; }
+
+  sdk:
+    name: Clone the SDK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install the SDK only
+        uses: ./installer
+        with:
+          sdk-version: '2.3.0'
+          sdk: true
+          skip: arm-toolchain,riscv-toolchain,pico-sdk-tools,picotool,cmake,ninja
+          cache: false
+
+      - name: The SDK and its submodules should be there
+        run: |
+          set -euo pipefail
+          test -f "$PICO_SDK_PATH/pico_sdk_init.cmake"
+          test -f "$PICO_SDK_PATH/lib/tinyusb/src/portable/raspberrypi/rp2040/dcd_rp2040.c"
+          test -f "$PICO_SDK_PATH/lib/mbedtls/library/aes.c"
+          git -C "$PICO_SDK_PATH" describe --tags
+
+  powershell:
+    name: picorc.ps1 on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install, leaving the profile alone
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python installer/install_pico_tools.py 2.3.0 --platform win32_x64 \
+            --no-sdk --no-openocd --no-riscv-toolchain --no-rc-include
+
+      - name: Dot-source it and check the tools resolve
+        shell: pwsh
+        run: |
+          . "$HOME/.pico-sdk/picorc.ps1"
+          foreach ($t in 'arm-none-eabi-gcc', 'picotool', 'pioasm', 'cmake', 'ninja') {
+            $c = Get-Command $t -ErrorAction Stop
+            Write-Host "$t -> $($c.Source)"
+          }
+          if ($env:CMAKE_GENERATOR -ne 'Ninja') { throw 'CMAKE_GENERATOR not set' }
+          # Sourcing twice must leave PATH exactly as it was
+          $before = $env:PATH
+          . "$HOME/.pico-sdk/picorc.ps1"
+          if ($env:PATH -ne $before) { throw 'PATH changed on a second source' }
+
+      # windows-latest has both 'pwsh' and 'powershell' profiles, and the runner
+      # is thrown away afterwards, so this is the one place the profile wiring
+      # can be tested for real.
+      - name: Both PowerShell profiles get the include block
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python installer/install_pico_tools.py 2.3.0 --platform win32_x64 \
+            --no-sdk --no-openocd --no-riscv-toolchain --rc-file "$RUNNER_TEMP/bashrc"
+      - name: Check both profiles
+        shell: pwsh
+        run: |
+          $seen = @()
+          foreach ($exe in 'pwsh', 'powershell') {
+            $p = & $exe -NoProfile -Command '$PROFILE.CurrentUserAllHosts'
+            Write-Host "$exe profile: $p"
+            if (-not (Select-String -Path $p -Pattern 'pico-sdk-tools installer' -Quiet)) {
+              throw "$exe profile has no include block"
+            }
+            $seen += $p
+          }
+          if (($seen | Select-Object -Unique).Count -ne 2) {
+            throw 'expected two distinct profile paths'
+          }
+
+  shell-rc:
+    name: picorc and shell rc wiring
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install and wire up a throwaway rc file
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # No --platform, so detection is covered too
+          python3 installer/install_pico_tools.py 2.3.0 \
+            --no-sdk --no-arm-toolchain --no-riscv-toolchain \
+            --no-openocd --no-cmake --no-ninja \
+            --rc-file "$RUNNER_TEMP/bashrc"
+          # Sourcing twice must leave PATH byte for byte identical.
+          . "$HOME/.pico-sdk/picorc"
+          before="$PATH"
+          . "$HOME/.pico-sdk/picorc"
+          test "$before" = "$PATH"
+          grep -q 'pico-sdk-tools installer' "$RUNNER_TEMP/bashrc"
+          picotool version | head -1
