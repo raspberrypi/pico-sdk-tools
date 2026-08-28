@@ -38,13 +38,13 @@ source ~/.pico-sdk/picorc
 
 The platform is detected automatically, or pass `--platform` if auto-detection fails (CI always passes an explicit platform):
 
-| `--platform`   | Target                       | Detected from                |
-| -------------- | ---------------------------- | ---------------------------- |
-| `linux_x64`    | Linux x86-64                 | `linux` + `x86_64`/`amd64`   |
-| `linux_arm64`  | Linux AArch64 (Raspberry Pi) | `linux` + `aarch64`/`arm64`  |
-| `darwin_x64`   | macOS Intel                  | `darwin` + `x86_64`          |
-| `darwin_arm64` | macOS Apple silicon          | `darwin` + `arm64`           |
-| `win32_x64`    | Windows x64                  | `win32`, any architecture    |
+| `--platform`   | Target                       | Detected from                    |
+| -------------- | ---------------------------- | -------------------------------- |
+| `linux_x64`    | Linux x86-64                 | `linux` + `x86_64`/`amd64`       |
+| `linux_arm64`  | Linux AArch64 (Raspberry Pi) | `linux` + `aarch64`/`arm64`      |
+| `darwin_x64`   | macOS Intel                  | `darwin` + `x86_64`              |
+| `darwin_arm64` | macOS Apple silicon          | `darwin` + `arm64`               |
+| `win32_x64`    | Windows x64                  | `win32`, any 64-bit architecture |
 
 There are no 32-bit builds, so 32-bit Arm Linux is unsupported.
 
@@ -54,16 +54,16 @@ See [Use from GitHub Actions](#use-from-github-actions) for using this script in
 
 By default, everything is downloaded to `~/.pico-sdk` (override with `--install-dir`):
 
-| Component        | Directory                          | Added to `PATH`                     |
-| ---------------- | ---------------------------------- | ----------------------------------- |
-| pico-sdk         | `sdk/<version>/`                   | -                                   |
-| Arm GCC          | `toolchain/<key>/`                 | `toolchain/<key>/bin`               |
-| RISC-V GCC       | `toolchain/<key>/`                 | `toolchain/<key>/bin`               |
-| `pioasm`         | `tools/<sdk>/pioasm/`              | `tools/<sdk>/pioasm`                |
-| `picotool`       | `picotool/<version>/picotool/`     | `picotool/<version>/picotool`       |
-| OpenOCD          | `openocd/<version>/`               | `openocd/<version>`                 |
-| CMake            | `cmake/<version>/`                 | `cmake/<version>/bin`               |
-| ninja            | `ninja/<version>/`                 | `ninja/<version>`                   |
+| Component            | Directory                          | Added to `PATH`                     |
+| -------------------- | ---------------------------------- | ----------------------------------- |
+| pico-sdk             | `sdk/<version>/`                   | -                                   |
+| Arm GCC toolchain    | `toolchain/<key>/`                 | `toolchain/<key>/bin`               |
+| RISC-V GCC toolchain | `toolchain/<key>/`                 | `toolchain/<key>/bin`               |
+| `pioasm`             | `tools/<sdk>/pioasm/`              | `tools/<sdk>/pioasm`                |
+| `picotool`           | `picotool/<version>/picotool/`     | `picotool/<version>/picotool`       |
+| OpenOCD              | `openocd/<version>/`               | `openocd/<version>`                 |
+| CMake                | `cmake/<version>/`                 | `cmake/<version>/bin`               |
+| ninja                | `ninja/<version>/`                 | `ninja/<version>`                   |
 
 `<version>` is that tool's own version, `<key>` is the toolchain key from `supportedToolchains.ini` such as `15_2_Rel1`, and `<sdk>` is the SDK version, since `pioasm` is versioned with the SDK rather than separately.
 
@@ -88,8 +88,10 @@ Valid components: `sdk`, `arm-toolchain`, `riscv-toolchain`, `pico-sdk-tools`, `
 
 The script performs two GitHub API lookups per run, so it does not need updating when a new SDK version is released:
 
-1. **Which versions belong to an SDK.** The Pico VS Code extension keeps its version metadata in `data/<data version>/`, where the data version is the extension's own release version and not an SDK version. Each directory covers every SDK the extension knew about at that point. The script asks the GitHub API for the newest of those directories in [`raspberrypi/pico-vscode`](https://github.com/raspberrypi/pico-vscode), then reads `versionBundles.json` and `supportedToolchains.ini` from it. Those give the Arm and RISC-V toolchain keys, the picotool version, and the CMake and ninja versions for the SDK you asked for. The files are read from the repository rather than from the extension's published copy at `raspberrypi.github.io/pico-vscode`, since the repository is where the data version came from and the published copy can briefly lag behind it after a release.
+1. **Which versions belong to an SDK.** The Pico VS Code extension keeps its version metadata in `data/<data version>/`, where the data version is the extension's own release version and not an SDK version. Each directory covers every SDK the extension knew about at that point. The script asks the GitHub API for the newest of those directories in [`raspberrypi/pico-vscode`](https://github.com/raspberrypi/pico-vscode), then reads `versionBundles.json` and `supportedToolchains.ini` from it. Those give the Arm and RISC-V GCC toolchain keys, the picotool version, and the CMake and ninja versions for the SDK you asked for. The files are read from the repository rather than from the extension's published copy at `raspberrypi.github.io/pico-vscode`, since the repository is where the data version came from and the published copy can briefly lag behind it after a release.
 2. **Which release publishes each tool.** The script lists the releases of [`raspberrypi/pico-sdk-tools`](https://github.com/raspberrypi/pico-sdk-tools) and takes each asset from the newest release that publishes it - so `pico-sdk-tools-2.3.0-aarch64-lin.tar.gz` comes from whichever release built it most recently. OpenOCD's version is read off the asset name.
+
+A `pico-sdk-tools` release is not an SDK release. The tags are `v<sdk version>-<n>`, where `<n>` counts rebuilds of the tools for that SDK, so `v2.3.0-0` and `v2.3.0-1` are both builds for SDK 2.3.0. Only `pico-sdk-tools` itself is named after the SDK version; `picotool`, the RISC-V GCC toolchain and OpenOCD each carry their own version in the asset name. A release does not have to publish every asset either, since `v2.1.1-1` has only `pico-sdk-tools` and `picotool`. That is why step 2 searches the whole release list per asset rather than pinning one tag, and why the release a tool comes from is not necessarily the one tagged for the SDK you asked for.
 
 It stops with an explanatory error if an API call fails. Unauthenticated requests are limited to 60 an hour *per IP*, so set `GITHUB_TOKEN` (or `GH_TOKEN`, or pass `--github-token`) if you are hitting that limit from your IP address. The composite action passes the job's token automatically.
 
@@ -101,15 +103,15 @@ To override any parts of it: `--extension-data-url` pins the metadata to the bas
 
 | Variable                    | Purpose                                          |
 | --------------------------- | ------------------------------------------------ |
-| `PICO_ARM_TOOLCHAIN_PATH`   | Arm toolchain root, for the universal targets in `pico-examples` |
-| `PICO_RISCV_TOOLCHAIN_PATH` | RISC-V toolchain root, likewise                   |
+| `PICO_ARM_TOOLCHAIN_PATH`   | Arm GCC toolchain root, for the universal targets in `pico-examples` |
+| `PICO_RISCV_TOOLCHAIN_PATH` | RISC-V GCC toolchain root, likewise                |
 | `picotool_DIR`              | So that `find_package(picotool)` resolves without a build |
 | `pioasm_DIR`                | So that `find_package(pioasm)` resolves without a build |
 | `OPENOCD_SCRIPTS`           | OpenOCD's script search path                      |
 | `CMAKE_GENERATOR`           | Set to `Ninja` when ninja is installed, since CMake otherwise defaults to Unix Makefiles on Linux. Can still be overridden with `-G` on the command line |
 | `PICO_SDK_PATH`             | Whenever `~/.pico-sdk/sdk/<version>` exists       |
 
-Note that `PICO_TOOLCHAIN_PATH` is **not** set. The SDK would search *only* that directory, so pointing it to the Arm toolchain would make every RISC-V configure print
+Note that `PICO_TOOLCHAIN_PATH` is **not** set. The SDK would search *only* that directory, so pointing it to the Arm GCC toolchain would make every RISC-V configure print
 
 ```
 CMake Warning: PICO_TOOLCHAIN_PATH specified (.../toolchain/15_2_Rel1),
