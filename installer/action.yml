@@ -28,6 +28,14 @@ inputs:
       arm-toolchain riscv-toolchain pico-sdk-tools picotool openocd cmake ninja
     required: false
     default: ''
+  only:
+    description: >-
+      Space- or comma-separated list of the only components to download, from the
+      same set as skip, plus sdk. Takes precedence over skip, and over the sdk and
+      openocd inputs, so naming one of those here installs it without setting its
+      input as well.
+    required: false
+    default: ''
   sdk:
     description: >-
       Clone the SDK into the install directory as well. Off by default: a
@@ -122,15 +130,24 @@ runs:
           python_bin=python
         fi
 
-        skip_args=''
+        component_args=''
         for component in $(echo '${{ inputs.skip }}' | tr ',' ' '); do
-          skip_args="$skip_args --no-$component"
+          component_args="$component_args --no-$component"
         done
         if [ '${{ inputs.sdk }}' != 'true' ]; then
-          skip_args="$skip_args --no-sdk"
+          component_args="$component_args --no-sdk"
         fi
         if [ '${{ inputs.openocd }}' != 'true' ]; then
-          skip_args="$skip_args --no-openocd"
+          component_args="$component_args --no-openocd"
+        fi
+        # Commas, so the value needs no quoting when the output is expanded
+        # back onto the command line below.
+        only=$(echo '${{ inputs.only }}' | tr ' ' ',' | tr -s ',' | sed 's/^,//;s/,$//')
+        if [ -n "$only" ]; then
+          # The opt-in inputs still mean "install it", so they join the list
+          if [ '${{ inputs.sdk }}' = 'true' ]; then only="$only,sdk"; fi
+          if [ '${{ inputs.openocd }}' = 'true' ]; then only="$only,openocd"; fi
+          component_args="$component_args --only $only"
         fi
 
         # The newest release tag belongs in the cache key, or a warm cache
@@ -152,6 +169,7 @@ runs:
           "$python_bin" -c 'import hashlib,sys; h=hashlib.sha256(); h.update(open(sys.argv[1],"rb").read()); h.update("\0".join(sys.argv[2:]).encode()); print(h.hexdigest()[:16])' \
             "${{ github.action_path }}/install_pico_tools.py" \
             '${{ inputs.skip }}' \
+            '${{ inputs.only }}' \
             '${{ inputs.sdk }}' \
             '${{ inputs.openocd }}' \
             '${{ inputs.extension-data-url }}' \
@@ -162,7 +180,7 @@ runs:
           echo "platform=$platform"
           echo "install-dir=$install_dir"
           echo "python-bin=$python_bin"
-          echo "skip-args=$skip_args"
+          echo "component-args=$component_args"
           echo "cache-key=pico-sdk-tools-$platform-${{ inputs.sdk-version }}-$tools_release-$digest"
         } >> "$GITHUB_OUTPUT"
 
@@ -196,5 +214,5 @@ runs:
         "${{ steps.resolve.outputs.python-bin }}" \
           "${{ github.action_path }}/install_pico_tools.py" \
           "${args[@]}" \
-          ${{ steps.resolve.outputs.skip-args }} \
+          ${{ steps.resolve.outputs.component-args }} \
           ${{ inputs.extra-args }}

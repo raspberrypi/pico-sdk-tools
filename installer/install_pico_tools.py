@@ -18,6 +18,7 @@ clone the SDK; without it that step is skipped with a warning.
 Examples:
   ./install_pico_tools.py
   ./install_pico_tools.py 2.3.0 --no-openocd --no-riscv-toolchain
+  ./install_pico_tools.py 2.3.0 --only sdk,arm-toolchain
   ./install_pico_tools.py 2.3.0 --platform linux_x64 --github-path --no-rc-include
 """
 
@@ -718,6 +719,14 @@ def main() -> int:
         )
 
     parser.add_argument(
+        "--only",
+        action="append",
+        metavar="COMPONENTS",
+        help="Install only these components, space- or comma-separated, may be "
+        f"repeated. Overrides --no-<component>. One or more of: {', '.join(COMPONENTS)}",
+    )
+
+    parser.add_argument(
         "--picorc",
         type=Path,
         default=None,
@@ -814,6 +823,17 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    only = []
+    for value in args.only or ():
+        for name in value.replace(",", " ").split():
+            if name not in COMPONENTS:
+                parser.error(
+                    f"--only: unknown component {name!r}. "
+                    f"Valid components: {', '.join(COMPONENTS)}"
+                )
+            if name not in only:
+                only.append(name)
+
     sdk_version = args.sdk_version.strip() if args.sdk_version else None
     try:
         platform_key = args.platform or detect_platform()
@@ -884,7 +904,11 @@ def main() -> int:
     if riscv_key.upper() != "NONE":
         riscv_url = ini.get(riscv_key, platform_key, fallback="")
 
-    skip = {c: getattr(args, f"skip_{c.replace('-', '_')}") for c in COMPONENTS}
+    if only:
+        # Absolute: --no-<component> does not get a say
+        skip = {c: c not in only for c in COMPONENTS}
+    else:
+        skip = {c: getattr(args, f"skip_{c.replace('-', '_')}") for c in COMPONENTS}
     if riscv_key.upper() == "NONE":
         skip["riscv-toolchain"] = True
 

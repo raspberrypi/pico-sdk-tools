@@ -84,6 +84,14 @@ Every component has a `--no-<component>` flag:
 
 Valid components: `sdk`, `arm-toolchain`, `riscv-toolchain`, `pico-sdk-tools`, `picotool`, `openocd`, `cmake`, `ninja`. Skipped components are left out of `picorc` too. `pico-sdk-tools` is the release asset of that name, which currently holds only `pioasm`, so it is listed as `pioasm` in the table above.
 
+`--only` is the inverse, naming the components to install and skipping the rest:
+
+```bash
+./install_pico_tools.py 2.3.0 --platform linux_x64 --only sdk,arm-toolchain
+```
+
+It takes a space- or comma-separated list, can be repeated, and takes precedence over `--no-<component>`, so `--only cmake --no-cmake` installs CMake. An unknown component name is rejected before anything is downloaded.
+
 ## Version resolution
 
 The script performs two GitHub API lookups per run, so it does not need updating when a new SDK version is released:
@@ -189,6 +197,7 @@ Because the action runs as a step in your job, every later step sees the tools: 
 | `platform`           | auto-detected from `runner.os`/`runner.arch` | Set this to install the tools for a different platform than the runner |
 | `install-dir`        | `~/.pico-sdk`           |                                                     |
 | `skip`               | *(none)*                | Space- or comma-separated list of component names   |
+| `only`               | *(none)*                | Install only these components, overriding `skip`    |
 | `sdk`                | `false`                 | Clone the SDK too - see below                       |
 | `openocd`            | `false`                 | Install OpenOCD too - see below                     |
 | `cache`              | `true`                  | `actions/cache` over the install directory          |
@@ -212,6 +221,21 @@ Cloning the SDK is off by default in the action. A workflow might already check 
 `PICO_SDK_PATH` is exported whenever an SDK is present in the install directory, whether this run cloned it or a previous one did. The clone is shallow, but still adds roughly 410 MB to the cache entry.
 
 As with `openocd`, naming a component in `skip` wins over its own input, so `skip: sdk` with `sdk: true` leaves the SDK out.
+
+`only` restricts the install to the components you name, and overrides `skip` entirely, so `only: ninja` with `skip: ninja` still installs ninja. `sdk: true` and `openocd: true` still mean "install it", joining the list rather than being excluded by it, so either of these installs the SDK alongside ninja:
+
+```yaml
+  - uses: raspberrypi/pico-sdk-tools/installer@main
+    with:
+      sdk-version: '2.3.0'
+      only: sdk,ninja
+
+  - uses: raspberrypi/pico-sdk-tools/installer@main
+    with:
+      sdk-version: '2.3.0'
+      only: ninja
+      sdk: true
+```
 
 ### OpenOCD
 

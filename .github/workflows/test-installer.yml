@@ -110,6 +110,32 @@ jobs:
           test ! -d "$HOME/.pico-sdk/openocd" || { echo "openocd was installed"; exit 1; }
           test ! -d "$HOME/.pico-sdk/ninja"   || { echo "ninja was installed"; exit 1; }
 
+  only-flag:
+    name: Only selected components
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # ninja arrives despite being in skip, and openocd despite not being in only
+      - name: Install ninja only, plus OpenOCD by its input
+        uses: ./installer
+        with:
+          sdk-version: '2.3.0'
+          only: ninja
+          skip: ninja
+          openocd: true
+          cache: false
+
+      - name: Only ninja and OpenOCD should be present
+        shell: bash
+        run: |
+          set -euo pipefail
+          ninja --version
+          test -d "$HOME/.pico-sdk/openocd" || { echo "openocd was not installed"; exit 1; }
+          for d in sdk toolchain tools picotool cmake; do
+            test ! -d "$HOME/.pico-sdk/$d" || { echo "$d was installed"; exit 1; }
+          done
+
   sdk:
     name: Clone the SDK
     runs-on: ubuntu-latest
