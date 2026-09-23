@@ -52,6 +52,21 @@ else
     cp ../packages/windows/pico-sdk-tools/pico-sdk-tools-config.cmake $INSTALLDIR
 fi
 
+if [ -d "pico-sdk/tools/ffsgen" ]; then
+    cd pico-sdk/tools/ffsgen
+    rm -rf build
+    mkdir -p build
+    cd build
+    cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release -DFFSGEN_FLAT_INSTALL=1 -DFFSGEN_VERSION_STRING=$sdkVersion -Wno-dev
+    cmake --build .
+
+    cd ../../../..
+    INSTALLDIR="pico-sdk-tools/${MSYSTEM,,}"
+    mkdir -p $INSTALLDIR
+    cmake --install pico-sdk/tools/ffsgen/build/ --prefix $INSTALLDIR
+    touch $INSTALLDIR/.keep
+fi
+
 cd picotool
 
 mkdir -p build

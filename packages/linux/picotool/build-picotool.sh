@@ -22,6 +22,21 @@ if [ ${version:0:1} -ge 2 ]; then
     touch $INSTALLDIR/.keep
 fi
 
+if [ -d "pico-sdk/tools/ffsgen" ]; then
+    cd pico-sdk/tools/ffsgen
+    rm -rf build
+    mkdir -p build
+    cd build
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DFFSGEN_FLAT_INSTALL=1 -DFFSGEN_VERSION_STRING=$version -Wno-dev
+    cmake --build .
+
+    cd ../../../..
+    INSTALLDIR="pico-sdk-tools"
+    mkdir -p $INSTALLDIR
+    cmake --install pico-sdk/tools/ffsgen/build/ --prefix $INSTALLDIR
+    touch $INSTALLDIR/.keep
+fi
+
 cd picotool
 rm -rf build
 mkdir -p build
