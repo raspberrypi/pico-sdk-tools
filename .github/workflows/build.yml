@@ -1,6 +1,16 @@
 on:
+  # The installer does not affect the tool builds. Tag pushes are unaffected:
+  # path filters are not evaluated for those, so releases still build.
   push:
+    paths-ignore:
+      - 'installer/**'
+      - '.github/workflows/test-installer.yml'
+      - 'README.md'
   pull_request:
+    paths-ignore:
+      - 'installer/**'
+      - '.github/workflows/test-installer.yml'
+      - 'README.md'
 
 permissions:
   contents: write

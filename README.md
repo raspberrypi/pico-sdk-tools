@@ -8,3 +8,27 @@ The tools currently included are:
 * **OpenOCD** (includes `linuxgpiod` and `cmsis-dap` adapters)
 * **pioasm**
 * **RISC-V Toolchain**
+
+## Installing the tools
+
+> Note: This installer is in beta, so arguments and format are subject to change
+
+[`installer/install_pico_tools.py`](installer/install_pico_tools.py) is a script that downloads these tools, plus the Arm GCC toolchain, CMake and ninja, into `~/.pico-sdk` - the same layout the pico-vscode extension uses - and puts them on `PATH`
+
+It needs Python 3.9 or newer, and `git` if you want it to clone the SDK too:
+
+```bash
+wget https://raw.githubusercontent.com/raspberrypi/pico-sdk-tools/main/installer/install_pico_tools.py
+chmod +x install_pico_tools.py
+./install_pico_tools.py
+```
+
+It is also a composite action, so a GitHub Actions job can install the same set of tools in one step:
+
+```yaml
+- uses: raspberrypi/pico-sdk-tools/installer@main
+  with:
+    sdk-version: '2.3.0'
+```
+
+See [`installer/README.md`](installer/README.md) for the full details.
