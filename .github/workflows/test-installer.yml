@@ -116,11 +116,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # ninja arrives despite being in skip, and openocd despite not being in only
+      # ninja arrives despite being in skip, and openocd despite not being in only.
+      # No sdk-version, to cover the default.
       - name: Install ninja only, plus OpenOCD by its input
+        id: tools
         uses: ./installer
         with:
-          sdk-version: '2.3.0'
           only: ninja
           skip: ninja
           openocd: true
@@ -130,6 +131,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo "sdk-version: ${{ steps.tools.outputs.sdk-version }}"
+          [[ '${{ steps.tools.outputs.sdk-version }}' =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+            || { echo "sdk-version was not resolved"; exit 1; }
           ninja --version
           test -d "$HOME/.pico-sdk/openocd" || { echo "openocd was not installed"; exit 1; }
           for d in sdk toolchain tools picotool cmake; do

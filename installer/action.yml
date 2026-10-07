@@ -10,8 +10,9 @@ branding:
 
 inputs:
   sdk-version:
-    description: Pico SDK version, e.g. 2.3.0
-    required: true
+    description: Pico SDK version, e.g. 2.3.0. Defaults to the latest.
+    required: false
+    default: ''
   platform:
     description: >-
       Platform key (linux_x64, linux_arm64, darwin_x64, darwin_arm64,
@@ -79,6 +80,9 @@ outputs:
   platform:
     description: Platform key that was used
     value: ${{ steps.resolve.outputs.platform }}
+  sdk-version:
+    description: SDK version that was installed
+    value: ${{ steps.resolve.outputs.sdk-version }}
   cache-hit:
     description: Whether the install directory was restored from cache
     value: ${{ steps.cache.outputs.cache-hit }}
@@ -93,14 +97,6 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
       run: |
         set -euo pipefail
-
-        # The script defaults to the newest SDK, but a workflow should say
-        # which one it wants. required: true is not enforced for a composite
-        # action, so check it here.
-        if [ -z '${{ inputs.sdk-version }}' ]; then
-          echo "::error::sdk-version is required"
-          exit 1
-        fi
 
         platform='${{ inputs.platform }}'
         if [ -z "$platform" ]; then
@@ -128,6 +124,24 @@ runs:
           python_bin=python3
         else
           python_bin=python
+        fi
+
+        # Resolved here so the cache key changes when a new SDK comes out.
+        sdk_version='${{ inputs.sdk-version }}'
+        if [ -z "$sdk_version" ]; then
+          data_args=()
+          if [ -n '${{ inputs.extension-data-url }}' ]; then
+            data_args=(--extension-data-url '${{ inputs.extension-data-url }}')
+          fi
+          sdk_version=$(
+            "$python_bin" "${{ github.action_path }}/install_pico_tools.py" \
+              --print-sdk-version \
+              --platform "$platform" \
+              ${data_args[@]+"${data_args[@]}"} \
+              ${{ inputs.extra-args }} \
+              | tail -n 1
+          )
+          echo "No sdk-version given, using the latest: $sdk_version"
         fi
 
         component_args=''
@@ -178,10 +192,11 @@ runs:
 
         {
           echo "platform=$platform"
+          echo "sdk-version=$sdk_version"
           echo "install-dir=$install_dir"
           echo "python-bin=$python_bin"
           echo "component-args=$component_args"
-          echo "cache-key=pico-sdk-tools-$platform-${{ inputs.sdk-version }}-$tools_release-$digest"
+          echo "cache-key=pico-sdk-tools-$platform-$sdk_version-$tools_release-$digest"
         } >> "$GITHUB_OUTPUT"
 
     - name: Restore cached tools
@@ -201,7 +216,7 @@ runs:
 
         # Seeded so the array is never empty, which `set -u` rejects on bash 3.2.
         args=(
-          '${{ inputs.sdk-version }}'
+          '${{ steps.resolve.outputs.sdk-version }}'
           --platform '${{ steps.resolve.outputs.platform }}'
           --install-dir '${{ steps.resolve.outputs.install-dir }}'
           --github-path
