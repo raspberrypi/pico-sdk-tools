@@ -821,6 +821,11 @@ def main() -> int:
         action="store_true",
         help="Print what would be downloaded, change nothing",
     )
+    parser.add_argument(
+        "--print-sdk-version",
+        action="store_true",
+        help="Print the SDK version that would be installed, and stop",
+    )
     args = parser.parse_args()
 
     only = []
@@ -891,6 +896,10 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+
+    if args.print_sdk_version:
+        print(sdk_version)
+        return 0
 
     bundle = merge_modifiers(bundles[sdk_version], platform_key)
     arm_key = bundle["toolchain"]

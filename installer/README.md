@@ -193,7 +193,7 @@ Because the action runs as a step in your job, every later step sees the tools: 
 
 | Input                | Default                 | Notes                                              |
 | -------------------- | ----------------------- | -------------------------------------------------- |
-| `sdk-version`        | *(required)*            | e.g. `2.3.0`. Required here even though the installer script defaults to the latest, so a workflow won't unexpectedly jump to a newer SDK version |
+| `sdk-version`        | latest known            | e.g. `2.3.0`. Leave it out to follow each new SDK release as it appears; pin it so a workflow won't unexpectedly jump to a newer SDK version |
 | `platform`           | auto-detected from `runner.os`/`runner.arch` | Set this to install the tools for a different platform than the runner |
 | `install-dir`        | `~/.pico-sdk`           |                                                     |
 | `skip`               | *(none)*                | Space- or comma-separated list of component names   |
@@ -205,7 +205,7 @@ Because the action runs as a step in your job, every later step sees the tools: 
 | `github-token`       | `${{ github.token }}`   | Used for the API calls that resolve which release publishes each tool |
 | `extra-args`         | *(none)*                | Passed through to `install_pico_tools.py`           |
 
-Outputs: `install-dir`, `platform`, `cache-hit`.
+Outputs: `install-dir`, `platform`, `sdk-version`, `cache-hit`.
 
 ### The SDK
 
@@ -332,6 +332,7 @@ Notable options:
 - `--bundles` / `--toolchains-ini` - use local copies of the extension data instead of fetching them. Passing both skips the data-version lookup entirely.
 - `--pico-sdk-tools-tag` / `--picotool-tag` / `--openocd-tag` - install the corresponding tool from a named `pico-sdk-tools` release, instead of the newest one publishing it.
 - `--openocd-version` - install a specific OpenOCD version rather than whichever the newest release ships.
+- `--print-sdk-version` - print the SDK version that would be installed as the last line of output, and stop.
 
 ## Requirements
 
