@@ -1,18 +1,15 @@
 #!/bin/bash
 
 # Build and package the SDK tools on Linux, macOS, or Windows (from an MSYS2
-# shell).  Packages are written to bin/.
+# UCRT64, MINGW64, CLANG64 or CLANGARM64 shell).  Packages are written to bin/.
 #
 # Usage: ./build.sh [options]
 #
-#   --config FILE        Windows only: the download and MSYS2 configuration to
-#                        build from (default config/x64-win.json).  Its name
-#                        is used as the package suffix.
 #   --sdk-version VER    Build the tools for this pico-sdk tree, rather than
 #                        the one in version.txt.
-#   --skip-download      Don't install prerequisites, download tools or clone
-#                        repositories, but use what is already in downloads/
-#                        and build/.  Components already built are not rebuilt.
+#   --skip-download      Don't install prerequisites or clone repositories,
+#                        but use what is already in build/.  Components
+#                        already built are not rebuilt.
 #   --merge              macOS only: merge the arm64 and x86_64 builds into
 #                        universal binaries, and package those.  Each build
 #                        leaves its binaries in build/*-<arch> for this.
@@ -21,21 +18,17 @@
 
 set -euo pipefail
 
-args=("$@")
-
 cd "$(dirname "$0")"
 
 SKIP_RISCV=${SKIP_RISCV-0}
 SKIP_OPENOCD=${SKIP_OPENOCD-0}
 SKIP_PICOTOOL=${SKIP_PICOTOOL-0}
 
-config=config/x64-win.json
 sdk_version=
 skip_download=0
 merge=0
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --config) config=$2; shift 2 ;;
         --sdk-version) sdk_version=$2; shift 2 ;;
         --skip-download) skip_download=1; shift ;;
         --merge) merge=1; shift ;;
@@ -51,15 +44,10 @@ case "$(uname -s)" in
 esac
 
 if [[ $PLATFORM == windows ]]; then
-    if ! command -v pacman > /dev/null; then
-        echo "On Windows, run this from an MSYS2 shell (https://www.msys2.org)" >&2
+    # The plain MSYS environment has no native toolchain, and pacboy needs the prefix
+    if ! command -v pacman > /dev/null || [[ -z ${MINGW_PACKAGE_PREFIX-} ]]; then
+        echo "On Windows, run this from an MSYS2 UCRT64, MINGW64, CLANG64 or CLANGARM64 shell (https://www.msys2.org)" >&2
         exit 1
-    fi
-    # jq isn't installed yet, and this has to happen before installing anything
-    msys_env=$(sed -n 's/.*"msysEnv": *"\([^"]*\)".*/\1/p' "$config")
-    if [[ ${MSYSTEM-} != "$msys_env" ]]; then
-        echo "Restarting in the MSYS2 ${msys_env} environment"
-        exec env MSYSTEM="$msys_env" CHERE_INVOKING=yes /usr/bin/bash -l "$PWD/build.sh" "${args[@]}"
     fi
     # Use real symlinks
     export MSYS=winsymlinks:nativestrict
@@ -83,7 +71,11 @@ case $PLATFORM in
         export MACOSX_DEPLOYMENT_TARGET=14.0
         ;;
     windows)
-        suffix=$(basename "$config" .json)
+        # Not uname -m, which is the x86_64 MSYS2 runtime even on Arm
+        case $MSYSTEM_CARCH in
+            aarch64) suffix=arm64-win ;;
+            *) suffix=x64-win ;;
+        esac
         ext=zip
         # GNU tar cannot write zip files
         tar=bsdtar
@@ -138,32 +130,6 @@ install_prerequisites() {
             pacboy -S --noconfirm --needed cmake:p ninja:p toolchain:p libusb:p hidapi:p libslirp:p
             ;;
     esac
-}
-
-download_windows_tools() {
-    local item name file href dir strip
-    while read -r item; do
-        name=$(jq -r .name <<< "$item")
-        file=$(jq -r .file <<< "$item")
-        href=$(jq -r .href <<< "$item")
-        dir=$(jq -r '.dirName // empty' <<< "$item")
-        strip=$(jq -r '.extractStrip // 0' <<< "$item")
-
-        if [[ $skip_download == 1 ]]; then
-            echo "Checking ${name}: downloads/${file}"
-            [[ -f "downloads/${file}" ]] || { echo "downloads/${file} not found" >&2; exit 1; }
-        else
-            echo "Downloading ${name}: ${file}"
-            curl --fail --silent --show-error --location --create-dirs --remote-time \
-                --time-cond "downloads/${file}" --output "downloads/${file}" --url "${href}"
-        fi
-
-        if [[ -n $dir ]]; then
-            rm -rf "build/${dir}"
-            mkdir -p "build/${dir}"
-            bsdtar -xf "downloads/${file}" -C "build/${dir}" --strip-components "${strip}"
-        fi
-    done < <(jq -c '.downloads[]' "$config")
 }
 
 clone_repositories() {
@@ -331,7 +297,6 @@ fi
 
 if [[ $PLATFORM == windows ]]; then
     git config --global core.autocrlf false
-    download_windows_tools
 fi
 
 clone_repositories
