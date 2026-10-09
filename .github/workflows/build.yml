@@ -30,11 +30,15 @@ jobs:
         uses: actions/checkout@v7
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
       - name: Build
+        shell: msys2 {0}
         run: |
-          subst P: .
-          P:
-          ./build.ps1 ./config/x64-win.json -SkipSigning -MSYS2Path (msys2 -c 'cygpath -m /').TrimEnd('\/')
+          subst P: "$(cygpath -w "$PWD")"
+          cd /p
+          ./build.sh --config config/x64-win.json
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
         with:
@@ -72,7 +76,7 @@ jobs:
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@main
       - name: Build
-        run: ./build_macos.sh
+        run: ./build.sh
       - name: Package build output
         # actions/upload-artifact does not preserve unix file permissions when
         # uploading a directory tree, which loses the executable bit on the
@@ -119,7 +123,7 @@ jobs:
           useGlob: true
           failOnError: false
       - name: Merge Universal Binaries
-        run: ./merge_macos.sh
+        run: ./build.sh --merge
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
         with:
@@ -151,7 +155,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Build
-        run: ./build_linux.sh
+        run: ./build.sh
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
         with:
