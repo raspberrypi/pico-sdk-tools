@@ -11,73 +11,90 @@ on:
       - 'installer/**'
       - '.github/workflows/test-installer.yml'
       - 'README.md'
+  workflow_dispatch:
+    inputs:
+      skip_riscv:
+        description: 'Skip the RISC-V toolchain'
+        type: boolean
+        default: false
+      skip_openocd:
+        description: 'Skip OpenOCD'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
   actions: write
 
 env:
-  SKIP_RISCV: 0
-  SKIP_OPENOCD: 0
+  SKIP_RISCV: ${{ inputs.skip_riscv && 1 || 0 }}
+  SKIP_OPENOCD: ${{ inputs.skip_openocd && 1 || 0 }}
 
 jobs:
-  build_windows:
-    name: Build Windows
-    runs-on: 'windows-latest'
+  build:
+    name: Build ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            platform: win
+            shell: msys2 {0}
+          - name: MacOS (arm64)
+            os: macos-15
+            platform: mac
+            arch: arm64
+          - name: MacOS (x86_64)
+            os: macos-15-intel
+            platform: mac
+            arch: x86_64
+          - name: Linux (x64)
+            os: ubuntu-22.04
+            platform: lin
+          - name: Linux (arm64)
+            os: [self-hosted, linux, arm64, bookworm, 16G]
+            platform: lin
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: ${{ matrix.shell || 'bash' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Setup MSYS2
+        if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
           update: true
-      - name: Build
-        shell: msys2 {0}
-        run: |
-          subst P: "$(cygpath -w "$PWD")"
-          cd /p
-          ./build.sh --config config/x64-win.json
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: tools-win-${{ runner.arch }}
-          path: |
-            bin/picotool-*-x64-win.zip
-            bin/pico-sdk-tools-*-x64-win.zip
-            bin/openocd-*-x64-win.zip
-            bin/riscv-toolchain-*-x64-win.zip
-      - name: Add Release Asset
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            bin/picotool-*-x64-win.zip
-            bin/pico-sdk-tools-*-x64-win.zip
-            bin/openocd-*-x64-win.zip
-            bin/riscv-toolchain-*-x64-win.zip
-
-  build_macos_arch:
-    name: Build MacOS (${{ matrix.arch }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-15
-            arch: arm64
-          - os: macos-15-intel
-            arch: x86_64
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
       - name: Set up Homebrew
+        if: runner.os == 'macOS'
         uses: Homebrew/actions/setup-homebrew@main
       - name: Build
-        run: ./build.sh
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            subst P: "$(cygpath -w "$PWD")"
+            cd /p
+          fi
+          ./build.sh
+
+      # Linux and Windows are packaged here; macOS by merge_macos below
+      - name: Upload Artifact
+        if: runner.os != 'macOS'
+        uses: actions/upload-artifact@v7
+        with:
+          name: tools-${{ matrix.platform }}-${{ runner.arch }}
+          path: bin/*
+      - name: Add Release Asset
+        if: runner.os != 'macOS' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bin/*
+
       - name: Package build output
+        if: runner.os == 'macOS'
         # actions/upload-artifact does not preserve unix file permissions when
         # uploading a directory tree, which loses the executable bit on the
         # binaries to be merged (https://github.com/actions/upload-artifact/issues/38).
@@ -89,15 +106,18 @@ jobs:
             [ -d "$d" ] && dirs+=("$d")
           done
           tar -cf ../build-mac-${{ matrix.arch }}.tar "${dirs[@]}"
-      - name: Upload Artifact
+      - name: Upload Build Output
+        if: runner.os == 'macOS'
         uses: actions/upload-artifact@v7
         with:
           name: build-mac-${{ matrix.arch }}
           path: build-mac-${{ matrix.arch }}.tar
 
-  build_macos:
+  merge_macos:
     name: Build MacOS (merge)
-    needs: build_macos_arch
+    needs: build
+    # needs a single result for the whole matrix, so run even if another platform failed
+    if: ${{ !cancelled() }}
     runs-on: 'macos-15'
 
     steps:
@@ -143,41 +163,9 @@ jobs:
             bin/openocd-*-mac.zip
             bin/riscv-toolchain-*-mac.zip
 
-  build_linux:
-    name: Build Linux
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, [self-hosted, linux, arm64, bookworm, 16G]]
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Build
-        run: ./build.sh
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: tools-lin-${{ runner.arch }}
-          path: |
-            bin/picotool-*-lin.tar.gz
-            bin/pico-sdk-tools-*-lin.tar.gz
-            bin/openocd-*-lin.tar.gz
-            bin/riscv-toolchain-*-lin.tar.gz
-      - name: Add Release Asset
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            bin/picotool-*-lin.tar.gz
-            bin/pico-sdk-tools-*-lin.tar.gz
-            bin/openocd-*-lin.tar.gz
-            bin/riscv-toolchain-*-lin.tar.gz
-
   test_binaries:
     name: Test Binaries
-    needs: [build_linux, build_macos, build_windows]
+    needs: [build, merge_macos]
     if: always() && contains(needs.*.result, 'success')
     strategy:
       fail-fast: false
