@@ -115,14 +115,8 @@ install_prerequisites() {
                 brew=/usr/local/bin/brew
             fi
             arch -"$(uname -m)" "$brew" install jq libtool libusb automake hidapi --quiet
-            # RISC-V prerequisites
-            echo "Listing local"
-            ls /usr/local/bin
-            rm /usr/local/bin/2to3* || true
-            rm /usr/local/bin/idle3* || true
-            rm /usr/local/bin/pip* || true
-            rm /usr/local/bin/py* || true
-            arch -"$(uname -m)" "$brew" install python3 gawk gnu-sed make gmp mpfr libmpc isl zlib expat texinfo flock libslirp --quiet
+            # RISC-V prerequisites, less python3 and libslirp which are only for QEMU
+            arch -"$(uname -m)" "$brew" install gawk gnu-sed make gmp mpfr libmpc isl zlib expat texinfo flock --quiet
             ;;
         windows)
             pacman -S --noconfirm --needed autoconf automake base-devel expat git libtool texinfo pactoys patchutils pkg-config jq
