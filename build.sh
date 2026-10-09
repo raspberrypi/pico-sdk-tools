@@ -125,9 +125,9 @@ install_prerequisites() {
             arch -"$(uname -m)" "$brew" install python3 gawk gnu-sed make gmp mpfr libmpc isl zlib expat texinfo flock libslirp --quiet
             ;;
         windows)
-            pacman -S --noconfirm --needed autoconf automake base-devel expat git libtool texinfo pactoys patchutils pkg-config jq libarchive
+            pacman -S --noconfirm --needed autoconf automake base-devel expat git libtool texinfo pactoys patchutils pkg-config jq
             # pacboy adds MINGW_PACKAGE_PREFIX to package names suffixed with :p
-            pacboy -S --noconfirm --needed cmake:p ninja:p toolchain:p libusb:p hidapi:p libslirp:p
+            pacboy -S --noconfirm --needed cmake:p ninja:p toolchain:p libusb:p hidapi:p libslirp:p libarchive:p
             ;;
     esac
 }
@@ -261,9 +261,9 @@ package_all() {
 
     if [[ $SKIP_OPENOCD != 1 ]]; then
         if [[ $PLATFORM == windows ]]; then
-            # Files with special characters in their names upset some
-            # decompression libraries
-            rm -f build/openocd-install/install/openocd/scripts/target/1986*.cfg
+            # Files with non-ASCII names (1986ве1т.cfg, к1879xб1я.cfg) upset
+            # some decompression libraries
+            LC_ALL=C find build/openocd-install/install/openocd/scripts -name '*[! -~]*' -print -delete
         fi
 
         # "Open On-Chip Debugger 0.12.0+dev-gabcdef (date)" -> 0.12.0+dev
