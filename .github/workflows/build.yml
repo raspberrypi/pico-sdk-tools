@@ -166,7 +166,7 @@ jobs:
   test_binaries:
     name: Test Binaries
     needs: [build, merge_macos]
-    if: always() && contains(needs.*.result, 'success')
+    if: ${{ !cancelled() }}
     strategy:
       fail-fast: false
       matrix:
