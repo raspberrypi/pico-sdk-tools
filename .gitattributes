@@ -1,3 +1,7 @@
 # Normalise to LF in the repository, and check out native line endings:
 # CRLF on Windows, LF everywhere else.
 * text=auto
+
+# Except where bash runs them on Windows too, which CRLF breaks
+*.sh text eol=lf
+*.patch text eol=lf
