@@ -156,9 +156,20 @@ clone_repositories() {
         echo "${href} ${tree} ${repodir}"
         rm -rf "${repodir}"
         git clone -b "${tree}" --depth=1 -c advice.detachedHead=false "${href}" "${repodir}"
-        if [[ $(jq -r .submodules <<< "$repo") == true ]]; then
-            git -C "${repodir}" submodule update --init --depth=1
-        fi
+        # submodules is either true for all of them, or a list of paths
+        case $(jq -r '.submodules | type' <<< "$repo") in
+            boolean)
+                if [[ $(jq -r .submodules <<< "$repo") == true ]]; then
+                    git -C "${repodir}" submodule update --init --depth=1
+                fi
+                ;;
+            array)
+                local path
+                while read -r path; do
+                    git -C "${repodir}" submodule update --init --depth=1 -- "$path"
+                done < <(jq -r '.submodules[]' <<< "$repo")
+                ;;
+        esac
     done < <(jq -c --arg v "$sdk_version" \
         '.repositories | (if $v != "" then .[0].tree = $v else . end) | .[]' \
         config/repositories.json)

@@ -11,7 +11,7 @@
     {
       "href": "https://github.com/raspberrypi/openocd.git",
       "tree": "sdk-2.3.0",
-      "submodules": true,
+      "submodules": ["jimtcl"],
       "openocd": true
     },
     {
